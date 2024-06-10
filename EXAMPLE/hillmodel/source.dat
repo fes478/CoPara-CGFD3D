@@ -1,0 +1,70 @@
+#######################################################################
+#                        for seis3d_source                            #
+#######################################################################
+
+source_hyper_height = 9.0
+distance2meter = 1.0E3
+source_type = 1 # 1-> focal ; 2-> force ; 3-> moment
+
+#######################################################################
+#                        real focal process                           #
+#######################################################################
+simulate_damp = 1.0 #defalut = 1.0
+# input moment rate * focal area, 
+# if without Sarea, should use Sarea=simualte_damp
+# unit meter and second
+focal_process_NC_file = stf-GPU.nc
+focal_point_number = 1
+focal_time_number = 1500
+focal_time_interval = 0.006
+
+
+#######################################################################
+#                        single force source                         #
+#######################################################################
+number_of_force_source = 0
+force_stf_window = 1
+force_stf_type = Ricker
+#for type: Original: Name; Derivative: name; Integral: NAME
+force_stf_timefactor = 0.65  # gauss t0; ricker t0; bell starting
+force_stf_freqfactor = 1.8 # gauss a;  ricker fc; bell width
+# x,y,z           | start  | f0    | fx   fy   fz
+# 150.0 80.0 9000.0  1.0e+16  0.0  0.0  1.0
+<anchor_force>
+  10.0 -15.0 -4.5   0.0    1.0e+16    1.0 1.0 1.0
+  20.0 -15.0 -4.5   0.0    1.0e+16    1.0 1.0 1.0
+  10.0  15.0 -4.5   0.0    1.0e+16   1.0 1.0 1.0
+  20.0  15.0 -4.5   0.0    1.0e+16   1.0 1.0 1.0
+ -20.0 -15.0 -4.5   0.0    1.0e+16   1.0 1.0 1.0
+ -10.0 -15.0 -4.5   0.0    1.0e+16   1.0 1.0 1.0
+ -20.0  15.0 -4.5   0.0    1.0e+16    1.0 1.0 1.0
+ -10.0  15.0 -4.5   0.0    1.0e+16    1.0 1.0 1.0
+
+#ricker 0.65 1.8 50m  1000*0.005
+#Ricker 0.45 3.0 30m  1300*0.005s
+
+#######################################################################
+#                        moment tensor source                         #
+#######################################################################
+number_of_moment_source = 0
+moment_stf_window = 1
+moment_stf_type = Ricker
+moment_stf_timefactor = 0.65  # gauss t0; ricker t0; bell starting
+moment_stf_freqfactor = 1.8 # gauss a;  ricker fc; bell width
+moment_mech_input = moment  # moment, angle
+# x,y,z     RuptT(s)    | m0(N.M) | Mxx Myy Mzz Mxy Mxz Myz
+# 150.0 80.0 9000.0  0.0   1.0e+16    1.0 1.0 1.0 0.0 0.0 0.0
+# x,y,z     RuptT(s)    | m0(N.M) | strike dip rake
+# 150.0 80.0 9000.0  0.0   1.0e+16    90   90   45
+<anchor_moment>
+ -20.0 -15.0 -2.5  0.0   1.0e-16    1.0 1.0 1.0 0.0 0.0 0.0
+ -10.0 -15.0 -6.5  0.0   1.0e-12    1.0 1.0 1.0 0.0 0.0 0.0
+ -20.0  15.0 -4.5  0.0   1.0e-8    1.0 1.0 1.0 0.0 0.0 0.0
+ -10.0  15.0 -4.5  0.0   1.0e-4    1.0 1.0 1.0 0.0 0.0 0.0
+  20.0 -15.0 -2.5  0.0   1.0e+4    1.0 1.0 1.0 0.0 0.0 0.0
+  10.0 -15.0 -6.5  0.0   1.0e+8    1.0 1.0 1.0 0.0 0.0 0.0
+  20.0  15.0 -4.5  0.0   1.0e+12    1.0 1.0 1.0 0.0 0.0 0.0
+  10.0  15.0 -4.5  0.0   1.0e+16    1.0 1.0 1.0 0.0 0.0 0.0
+
+
+# vim:ft=conf:ts=4:sw=4:nu:et:ai:

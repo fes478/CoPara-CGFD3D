@@ -1,0 +1,32 @@
+# First should specify the device number used for a given node,
+# then specify the needed DeviceID in that node.
+
+
+# seperate device total number
+
+#used_device_number_garray3 = 8
+#used_device_number_garray4 = 8
+#used_device_number_garray1 = 1
+
+
+used_device_number_garray3 = 1
+used_device_number_garray4 = 1
+used_device_number_garray1 = 1
+
+#  device number on the Y dims
+
+device_ydims_garray3 = 1
+device_ydims_garray4 = 1
+device_ydims_garray1 = 2
+
+
+# device_ hostname   =  [ device_selected]
+
+#used_device_id_garray3 = 0 1 2 3 4 5 6 7
+#used_device_id_garray4 = 0 1 2 3 4 5 6 7
+used_device_id_garray1 = 0 1
+
+used_device_id_garray3 = 2 3 4 5 6 7
+used_device_id_garray4 = 2 3 4 5 6 7
+#used_device_id_garray3 = 0 1 
+#used_device_id_garray4 = 0 1

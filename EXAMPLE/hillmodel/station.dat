@@ -1,0 +1,72 @@
+#######################################################################
+#                         for output                                  #
+#######################################################################
+# final snap output
+number_of_snap = 1
+# id        start          count           stride  tinv  cmp
+#  CMP(1 = velocity only; 2 = stress only; 3 = both)
+# fix zeta Z
+snap_001 =  1   1   100    201 201 1       1 1 1   20     3
+# fix xi X
+snap_002 =  1   100 1      200 1   200     1 1 1   20     3
+# fix eta Y
+snap_003 =  100 1   1      1   200 200     1 1 1   20     3
+
+# fix zeta Z
+snap_004 =  1   1   200    200 200 1       1 1 1   20     3
+# fix xi X
+snap_005 =  1   50  1      200 1   200     1 1 1   20     3
+# fix eta Y
+snap_006 =  50  1   1      1   200 200     1 1 1   20     3
+
+# final seismogram
+topo_hyper_height = 8000.0E3
+tinv_of_seismo = 1
+
+# seismo-line output
+number_of_inline = 1
+# line_id     (x0,y0,z0)         | (dx,dy,dz)      |count
+line_001 =  3.0E3  0.5E3  0.0E3 | 0.0E3 1.0E3 0.0 | 9
+line_002 =  0.5E3  8.0E3 -8.0E3 | 1.0E3 0.0E3 0.0 | 9
+line_003 =  8.0E3  8.0E3  0.0E3 | -1.0E3 -1.0E3 -1.0E3 | 7
+line_004 =  -5.0E3 -2.0E3 -1.5E3 | 0.1E3 0.0E3 0.0 | 99
+
+# seismo-point output
+number_of_recv = 26
+recv_001 =  5.0E3  5.0E3 -5.0E3
+recv_002 =  5.0E3  5.0E3 9000E3
+recv_003 =  5.0E3  5.0E3 -8.0E3
+recv_004 =  2.5E3  5.0E3 9000E3
+recv_005 =  5.0E3  7.5E3 9000E3
+recv_006 =  5.0E3  7.5E3 -9.0E3
+recv_007 =  5.0E3  5.0E3 -4.0E3
+recv_008 =  5.0E3  5.0E3 -3.0E3
+recv_009 =  5.0E3  5.0E3 -2.0E3
+recv_010 =  5.0E3  5.0E3 -1.0E3
+recv_011 =  5.0E3  6.0E3 -5.0E3
+recv_012 =  5.0E3  7.0E3 -5.0E3
+recv_013 =  5.0E3  8.0E3 -5.0E3
+recv_014 =  5.0E3  9.0E3 -5.0E3
+recv_015 =  4.0E3  5.0E3 9000E3
+recv_016 =  3.0E3  5.0E3 9000E3
+recv_017 =  2.0E3  5.0E3 9000E3
+recv_018 =  1.0E3  5.0E3 9000E3
+recv_019 =  1.5E3  8.0E3 9000E3
+recv_020 =  2.5E3  8.0E3 9000E3
+recv_021 =  3.5E3  8.0E3 9000E3
+recv_022 =  4.5E3  8.0E3 9000E3
+recv_023 =  5.5E3  8.0E3 9000E3
+recv_024 =  6.5E3  8.0E3 9000E3
+recv_025 =  7.5E3  8.0E3 9000E3
+recv_026 =  8.5E3  8.0E3 9000E3
+recv_027 =  3.0E3  3.0E3 -4.0E3
+recv_028 =  3.0E3  3.0E3 -3.0E3
+recv_029 =  3.0E3  3.0E3 -2.0E3
+recv_030 =  3.0E3  3.0E3 -1.0E3
+recv_031 =  3.0E3  3.0E3  0.0E3
+recv_032 =  3.0E3 -3.0E3  0.0E3
+recv_033 = -3.0E3  3.0E3  0.0E3
+recv_034 = -3.0E3 -3.0E3  0.0E3
+
+
+# vim:ft=conf:ts=4:sw=4:nu:et:ai:
