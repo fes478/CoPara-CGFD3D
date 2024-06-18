@@ -20,7 +20,7 @@ It can address elastic wave propagating issues in three-dimensional complex medi
 
 It was first proposed by Zhang and Chen (2006), added PML absorbing boundary by  Zhang and Shen (2010), improved by Zhang et al. (2012), and applied in many historical earthquake studies.
 
-Here is a new multi-GPU-based collaborative parallel implementation.
+Here is a new multi-GPU-based collaborative parallel implementation, and the usage should refer to [manual](./user_manual.md).
 
 
 
