@@ -6,7 +6,7 @@
 
 4. The coordinate reference frame follows **East-North-Up**  as  X-Y-Z (right-hand spiral coordinate).
 
-
+```c
 	//                          
 	//        Z-dir          O-----------------------------O
 	//        |           x  |                          x  |
@@ -28,6 +28,7 @@
 	//        O-----------------------------O-------------X-dir
 	//
 	//
+```
 
 5. All units follow the International System of Units (meter, second, pascal).
 6. PML and exponential absorbing boundary layer is supported (**PML** is recommended). 
