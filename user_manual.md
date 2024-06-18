@@ -33,8 +33,8 @@
 6. PML and exponential absorbing boundary layer is supported (**PML** is recommended). 
 7. Input source should be **velocity** or **moment rate**, and volume-type fault rupture process input is supported.
 8. Output is velocity and stress in point, line, surface, and volume type.
-8.  The **minimum grid points per wavelength(PPW) is 8**. If the maximum grid spacing is dh, the minimum velocity is Vmin, the maximum velocity is Vmax, then the maximum reliable frequency (f) is f=Vmin/(PPW\*dh) = Vmin/(8\*dh), the maximum time interval (dt) allowed is dt=0.76\*dh/Vmax. Example: Vmin=1000 m/s, Vmax = 3000m/s, dh = 100m, f = 1000/8/100=1.25, dt = 0.76*100/3000=0.025. So the simulating `dt` should small than 0.025, and the maximum frequency of synthetic waveform will be 1.25.
-
+9. The **minimum grid points per wavelength(PPW) is 8**. If the maximum grid spacing is dh, the minimum velocity is Vmin, the maximum velocity is Vmax, then the maximum reliable frequency (f) is f=Vmin/(PPW\*dh) = Vmin/(8\*dh), the maximum time interval (dt) allowed is dt=0.76\*dh/Vmax. Example: Vmin=1000 m/s, Vmax = 3000m/s, dh = 100m, f = 1000/8/100=1.25, dt = 0.76*100/3000=0.025. So the simulating `dt` should small than 0.025, and the maximum frequency of synthetic waveform will be 1.25.
+10. This manual is also applicable to the original CPU-based CGFD3D(ZhangWei,2006), with only differences in the model construction section.
 
 
 ## Folder description
@@ -135,7 +135,7 @@ source.dat: source parameters.
 
 ​				source_hyper_height: the Maximum reference height, exceeding this value will be applied to the surface.
 
-​				distance2meter: distance unit, used for single force (type 1) or moment tensor (type 3).
+​				distance2meter: distance unit, used for single force (type 2) or moment tensor (type 3).
 
 ​				source_type: choose source type, 1 for extrenal volume type input, 2 for single force, 3 for moment tensor.
 ​					If you use explosive source, you should input moment tensor (type 1 or 3) with Mxx, Myy, Mzz euqals to 1,
