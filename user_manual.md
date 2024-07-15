@@ -2,7 +2,7 @@
 1. This is a **GPU parallel** program that support **multi nodes** execution.
 
 2. This program is suitable for complex interface and 3D medium situations.
-3. The actual model construction an numerical calculation are carried out on the Cartesian coordinate (automatically transformed from curve coordinate).
+3. The actual model construction and numerical calculation are carried out on the Cartesian coordinate (automatically transformed from curve coordinate).
 
 4. The coordinate reference frame follows **East-North-Up**  as  X-Y-Z (right-hand spiral coordinate).
 
