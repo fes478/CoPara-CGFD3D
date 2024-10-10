@@ -187,7 +187,7 @@ absorb.dat: absorbing parameters
 ​				abs_velocity: each absorbing layer's reference velocity, should use the maximum Vp. 
 
 ​				NOTICE: as a trick, directly use the default par, except for Zmax(free surface use).
-​					detail usage should refer to ZhangWei and ShenYang(GJI, 2010), or Master Thesis of YangXina(2010, USTC, in Chinese)
+​					detail usage should refer to ZhangWei and ShenYang(GJI, 2010), or Master Thesis of YangXina(2020, USTC, in Chinese)
 
 device.dat:
 
