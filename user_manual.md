@@ -36,6 +36,8 @@
 8. Output is velocity and stress in point, line, surface, and volume type.
 9. The **minimum grid points per wavelength(PPW) is 8**. If the maximum grid spacing is dh, the minimum velocity is Vmin, the maximum velocity is Vmax, then the maximum reliable frequency (f) is f=Vmin/(PPW\*dh) = Vmin/(8\*dh), the maximum time interval (dt) allowed is dt=0.76\*dh/Vmax. Example: Vmin=1000 m/s, Vmax = 3000m/s, dh = 100m, f = 1000/8/100=1.25, dt = 0.76*100/3000=0.025. So the simulating `dt` should small than 0.025, and the maximum frequency of synthetic waveform will be 1.25.
 10. This manual is also applicable to the original CPU-based CGFD3D(ZhangWei,2006), with only differences in the model construction section.
+10. The summary of program updates is at the end of this document. 
+10. For the more robust and versatile CGFD3DM algorithm, please keep an eye on https://github.com/zw-sustech/CGFD3D .
 
 
 ## Folder description
@@ -241,3 +243,16 @@ Four python programs are used for view the output, and the instructions was writ
 
 
 
+## Summary of program updates
+
+#### 20241211
+
+corrected the output time, the starting time is set as first dt, not 0;
+
+incorporated a distinct hybrid grid implementation.
+
+​	 CalWave, in shallow region utilize xix, etax, zetax, zetay, and zetaz, while in deep region, utilize xix, etax, and zetaz.
+
+​	CalWavemix, in shallow region utilize zetax, zetay, and zetaz, while in deep region, utilize zetaz. (makefile with SimpleCar marco)
+
+​	CalWaveCL, represents a full-curve grid method.

@@ -1396,6 +1396,7 @@ void mpisend(deriv *Mdrv, int Dtag, int cpn, cindx cdx, M2Csplit Mid)
 	
 	for(i=0;i<cpn;i++)
 	{
+#ifndef SimpleCar
 		tag = Dtag + i+1 + (1E3)*1;
 		com.flatten21D(Mdrv->xi_x, h1d, cdx, 0);//full size flatten
 		MPI_Send(h1d+Mid.CopyS[i]*Syz, Mid.CopySize[i]*Syz, MpiType, i+1, tag, MPI_COMM_WORLD);
@@ -1419,7 +1420,7 @@ void mpisend(deriv *Mdrv, int Dtag, int cpn, cindx cdx, M2Csplit Mid)
 		tag = Dtag + i+1 + (1E3)*6;
 		com.flatten21D(Mdrv->eta_z, h1d, cdx, 0);//full size flatten
 		MPI_Send(h1d+Mid.CopyS[i]*Syz, Mid.CopySize[i]*Syz, MpiType, i+1, tag, MPI_COMM_WORLD);
-	
+#endif
 		tag = Dtag + i+1 + (1E3)*7;
 		com.flatten21D(Mdrv->zeta_x, h1d, cdx, 0);//full size flatten
 		MPI_Send(h1d+Mid.CopyS[i]*Syz, Mid.CopySize[i]*Syz, MpiType, i+1, tag, MPI_COMM_WORLD);
@@ -1445,7 +1446,7 @@ void mpirecv(derivF *Cdrv, int Dtag, int myid, int Csize, cindx cdx, MPI_Status 
 	int Syz;
 
 	Syz = cdx.ny*cdx.nz;
-	
+#ifndef SimpleCar	
 	tag = Dtag + myid + (1E3)*1;
 	MPI_Recv(Cdrv->xix, Csize*Syz, MpiType, 0, tag, MPI_COMM_WORLD, &status);
 
@@ -1463,7 +1464,7 @@ void mpirecv(derivF *Cdrv, int Dtag, int myid, int Csize, cindx cdx, MPI_Status 
 
 	tag = Dtag + myid + (1E3)*6;
 	MPI_Recv(Cdrv->etaz, Csize*Syz, MpiType, 0, tag, MPI_COMM_WORLD, &status);
-
+#endif
 	tag = Dtag + myid + (1E3)*7;
 	MPI_Recv(Cdrv->zetax, Csize*Syz, MpiType, 0, tag, MPI_COMM_WORLD, &status);
 

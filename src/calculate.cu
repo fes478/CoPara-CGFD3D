@@ -47,7 +47,13 @@ __constant__ int ipam[11];
 __device__ void matinv(Real *A);//3*3 matrix invertion
 __device__ void matmul(Real *A, Real *B, Real *C);//3*3 matrix mutiply
 
+__global__ void perform3(flatstruct::forceF, flatstruct::momentF, int, int);//check derivative
+__global__ void perform2(flatstruct::derivF, flatstruct::mdparF, defstruct::apara, flatstruct::forceF, flatstruct::momentF, int, int);//check derivative
+__global__ void perform(flatstruct::derivF, Real*);//check derivative
+__global__ void perform(flatstruct::mdparF, Real*);//check media par
+__global__ void perform(flatstruct::mdparF, Real*, int , int, int, int, int, int, int, int, int);
 __global__ void perform();//display ipam
+__global__ void perform(Real*, Real*, Real*, flatstruct::forceF, flatstruct::momentF, int, int, int);//check Ex
 __global__ void generatewave(defstruct::wfield, int, int);//check wave and index
 
 __global__ void WavefieldPick(defstruct::wfield, defstruct::wfield, flatstruct::PointIndexBufferF, int, int, int);
@@ -57,14 +63,19 @@ __global__ void VelPDcoeff(flatstruct::derivF, flatstruct::mdparF, defstruct::ap
 
 __global__ void CalDiff(int, int, int, int, Real, Real*, Real*, defstruct::wfield, flatstruct::PartialD);// space-domain stress and velocity partial derivative
 __global__ void CalWave(int, flatstruct::derivF, flatstruct::mdparF, flatstruct::PartialD, defstruct::apara, Real*, Real*, defstruct::wfield,
-			  defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield);
+			  defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield);//unequal space X&Y
+__global__ void CalDiffmix(int, int, int, int, Real, Real*, Real*, defstruct::wfield, flatstruct::PartialD);// space-domain stress and velocity partial derivative
+__global__ void CalWavemix(int, flatstruct::derivF, flatstruct::mdparF, flatstruct::PartialD, defstruct::apara, Real*, Real*, defstruct::wfield,
+			  defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield);//equal space X&Y
 __global__ void CalDiffCL(int, int, int, int, Real, Real*, Real*, defstruct::wfield, flatstruct::PartialD);// space-domain stress and velocity partial derivative
 __global__ void CalWaveCL(int, flatstruct::derivF, flatstruct::mdparF, flatstruct::PartialD, defstruct::apara, Real*, Real*, defstruct::wfield,
-			  defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield);
-__global__ void CalDiffSL(int, int, int, int, Real, Real*, Real*, defstruct::wfield, flatstruct::PartialD);// space-domain stress and velocity partial derivative
+			  defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield);//pure curve
+__global__ void CalDiffSL(int, int, int, int, Real, Real*, Real*, defstruct::wfield, flatstruct::PartialD);// not support yet
 __global__ void CalWaveSL(int, flatstruct::derivF, flatstruct::mdparF, defstruct::apara, flatstruct::PartialD, defstruct::wfield,
-			  defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield);
+			  defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield);//pure simple cartisian
 __global__ void CalTIMG(int, int, int, Real, Real*, flatstruct::derivF, defstruct::wfield, defstruct::wfield,
+		        defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::apara);// Z-direction traction image free surface condition
+__global__ void CalTIMGmix(int, int, int, Real, Real*, flatstruct::derivF, defstruct::wfield, defstruct::wfield,
 		        defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::apara);// Z-direction traction image free surface condition
 __global__ void CalVUCD(int, int, int, Real, Real*, Real*, flatstruct::mdparF, flatstruct::derivF, defstruct::wfield, defstruct::wfield,
 			defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::wfield, defstruct::apara);// velocity unilater compact difference
@@ -241,8 +252,10 @@ ChildProcs::ChildProcs(const char *filename, cindx i_cdx, Real i_steph, Real i_s
 	GD.Vx = new Real  [fullsize](); GD.Vy = new Real  [fullsize](); GD.Vz = new Real  [fullsize]();
 	
 	//host side, node-size, par buffer, free after deliver
+#ifndef SimpleCar
 	H_drv.xix  = new Real [ fullsize ](); H_drv.xiy  = new Real [ fullsize ](); H_drv.xiz  = new Real [ fullsize ](); 
 	H_drv.etax = new Real [ fullsize ](); H_drv.etay = new Real [ fullsize ](); H_drv.etaz = new Real [ fullsize ](); 
+#endif
 	H_drv.zetax= new Real [ fullsize ](); H_drv.zetay= new Real [ fullsize ](); H_drv.zetaz= new Real [ fullsize ](); 
 	H_drv.jac  = new Real [ fullsize ](); 
 
@@ -319,10 +332,6 @@ ChildProcs::ChildProcs(const char *filename, cindx i_cdx, Real i_steph, Real i_s
 		BPG[i].z = 1;
 
 		//-------------------------------------wavefield variables-----------------------------------------------
-		//h_FW[i].Txx = new Real [fullsize](); h_FW[i].Tyy = new Real [fullsize](); h_FW[i].Tzz = new Real [fullsize]();
-		//h_FW[i].Txy = new Real [fullsize](); h_FW[i].Txz = new Real [fullsize](); h_FW[i].Tyz = new Real [fullsize]();
-		//h_FW[i].Vx = new Real  [fullsize](); h_FW[i].Vy = new Real  [fullsize](); h_FW[i].Vz = new Real  [fullsize]();
-		
 		cudaMalloc( (Real**)&FW[i].Txx, fullsize*sizeof(Real) );
 		cudaMalloc( (Real**)&FW[i].Tyy, fullsize*sizeof(Real) );
 		cudaMalloc( (Real**)&FW[i].Tzz, fullsize*sizeof(Real) );
@@ -528,24 +537,28 @@ ChildProcs::ChildProcs(const char *filename, cindx i_cdx, Real i_steph, Real i_s
 
 		//-------------------------------------preprocessing pars------------------------------------------------
 		//coordinate derivative
+#ifndef SimpleCar		
 		cudaMalloc( (Real**)&drv[i].xix, fullsize*sizeof(Real) ); 
 		cudaMalloc( (Real**)&drv[i].xiy, fullsize*sizeof(Real) ); 
 		cudaMalloc( (Real**)&drv[i].xiz, fullsize*sizeof(Real) ); 
 		cudaMalloc( (Real**)&drv[i].etax, fullsize*sizeof(Real) ); 
 		cudaMalloc( (Real**)&drv[i].etay, fullsize*sizeof(Real) ); 
 		cudaMalloc( (Real**)&drv[i].etaz, fullsize*sizeof(Real) ); 
+#endif
 		cudaMalloc( (Real**)&drv[i].zetax, fullsize*sizeof(Real) ); 
 		cudaMalloc( (Real**)&drv[i].zetay, fullsize*sizeof(Real) ); 
 		cudaMalloc( (Real**)&drv[i].zetaz, fullsize*sizeof(Real) ); 
 		err = cudaMalloc( (Real**)&drv[i].jac, fullsize*sizeof(Real) ); 
 		if(err != 0) printf("err = %d, errS=%s, error may occur at Malloc drv\n",err, cudaGetErrorString(err) );
 
+#ifndef SimpleCar
 		cudaMemset( drv[i].xix, 0, fullsize*sizeof(Real) );
 		cudaMemset( drv[i].xiy, 0, fullsize*sizeof(Real) );
 		cudaMemset( drv[i].xiz, 0, fullsize*sizeof(Real) );
 		cudaMemset( drv[i].etax, 0, fullsize*sizeof(Real) );
 		cudaMemset( drv[i].etay, 0, fullsize*sizeof(Real) );
 		cudaMemset( drv[i].etaz, 0, fullsize*sizeof(Real) );
+#endif		
 		cudaMemset( drv[i].zetax, 0, fullsize*sizeof(Real) );
 		cudaMemset( drv[i].zetay, 0, fullsize*sizeof(Real) );
 		cudaMemset( drv[i].zetaz, 0, fullsize*sizeof(Real) );
@@ -1127,9 +1140,10 @@ ChildProcs::~ChildProcs()
 
 			cudaFree(drv[i].jac);
 			cudaFree(drv[i].zetaz);	cudaFree(drv[i].zetay);	cudaFree(drv[i].zetax);
+#ifndef SimpleCar			
 			cudaFree(drv[i].etaz);	cudaFree(drv[i].etay);	cudaFree(drv[i].etax);
 			cudaFree(drv[i].xiz);	cudaFree(drv[i].xiy);	cudaFree(drv[i].xix);
-			
+#endif	
 			cudaFree(pd[i].DzVz);	cudaFree(pd[i].DzVy);	cudaFree(pd[i].DzVx);
 			cudaFree(pd[i].DzTyz);	cudaFree(pd[i].DzTxz);	cudaFree(pd[i].DzTxy);
 			cudaFree(pd[i].DzTzz);	cudaFree(pd[i].DzTyy);	cudaFree(pd[i].DzTxx);
@@ -1162,9 +1176,6 @@ ChildProcs::~ChildProcs()
 			cudaFree(FW[i].Tyz);	cudaFree(FW[i].Txz);	cudaFree(FW[i].Txy);
 			cudaFree(FW[i].Tzz);	cudaFree(FW[i].Tyy);	cudaFree(FW[i].Txx);
 
-			//delete [] h_FW[i].Vz;	delete [] h_FW[i].Vy;	delete [] h_FW[i].Vx;
-			//delete [] h_FW[i].Tyz;	delete [] h_FW[i].Txz;	delete [] h_FW[i].Txy;
-			//delete [] h_FW[i].Tzz;	delete [] h_FW[i].Tyy;	delete [] h_FW[i].Txx;
 			
 			if(fpn)
 			{
@@ -1284,7 +1295,6 @@ ChildProcs::~ChildProcs()
 		delete [] mpa;	delete [] drv;
 		delete [] pd;
 		delete [] tW;	delete [] hW;	delete [] mW;	delete [] W;
-		//delete [] h_FW;	
 		delete [] FW;
 		delete [] DPW;
 		delete [] D_Dpt;	delete [] Dpt;
@@ -1332,6 +1342,11 @@ void ChildProcs::VelCoeff()
 		cudaSetDevice( Cid.Rank[i] );
 		VelPDcoeff<<<BPG[i].y,BPG[i].x>>>(drv[i], mpa[i], apr[i], matVx2Vz[i], matVy2Vz[i]);
 		
+		//perform<<<1,1>>>();
+		//perform2<<<BlockPerGrid,ThreadPerBlock>>>(drv[i], mpa[i], apr[i], frc[i], mnt[i], nfrc, nmnt);
+		
+		//perform<<<1,1>>>(Ex, Ey, Ez, frc, mnt, Cid.Rank[i], Cstart, HostMpiRank);
+		//perform<<<BlockPerGrid,ThreadPerBlock>>>(Ex, Cstart, HostMpiRank);
 		CC( cudaDeviceSynchronize() );
 	}
 	fprintf(stdout,"accomplished VelPDcoeff computation at PCS[%d]\n",HostMpiRank);
@@ -1434,12 +1449,37 @@ if(Zvec==1) printf("F\n"); else printf("B\n");
 #endif
 
 		//-----------------------------------verification---------mpa/drv/wave field  transport---------------
+		//perform<<<BlockPerGrid,ThreadPerBlock>>>(mpa, A);
+		//perform<<<BlockPerGrid,ThreadPerBlock>>>(mpa, A, i, HostMpiRank, Cid.xl[i], Cid.xr[i], Cid.yd[i], Cid.yu[i], Cxn, cdx.nj, cdx.nk);
+		//perform<<<1,1>>>();
+		//perform<<<BlockPerGrid,ThreadPerBlock>>>(drv, A);
+		//perform3<<<1,1>>>(frc[i], mnt[i], nfrc, nmnt);
+		
 		//generatewave<<<BPG[i],ThreadPerBlock>>>(FW[i], currT, Cstart);
 		//generatewave<<<BlockPerGrid,ThreadPerBlock>>>(FW[i], currT, Cstart);
 		//err = cudaGetLastError(); if(err!=0)printf("err=%d, errS=%s, error at PCS [%d] Lanuch Perform/Generate\n",err, cudaGetErrorString(err), HostMpiRank );
 		
+		//printf("for DEV[%d],BPG.x=%d, BPG.y=%d, BPG.z=%d, TPB.x=%d, TPB.y=%d, TPB.z=%d\n",
+		//	Cid.Rank[i], BPG[i].x, BPG[i].y, BPG[i].z, ThreadPerBlock.x, ThreadPerBlock.y, ThreadPerBlock.z);
+		
+		//printf("check source at PCS[%d]Dev[%d](%d,%d,%d)\n", HostMpiRank,Cid.Rank[i],this->nfrc,this->nmnt,Cid.fp[i]);
+		
+		
+		
 		if(this->HyGrid)
 		{
+#ifdef SimpleCar
+		//for equal space along X and Y. Need remake by SimpleCar Marco
+		CalDiffmix<<<BPG[i],ThreadPerBlock>>>(Xvec, Yvec, Zvec, ConIndex, steph, matVx2Vz[i], matVy2Vz[i], mW[i], pd[i]);//mW used as W
+		err = cudaGetLastError(); if(err!=0)printf("err=%d, errS=%s, error may occur after Lanuch HG-DiffCL-mix\n",err, cudaGetErrorString(err) );
+		cudaDeviceSynchronize();
+		
+		CalWavemix<<<BPG[i],ThreadPerBlock>>>(ConIndex, drv[i], mpa[i], pd[i], apr[i], matVx2Vz[i], matVy2Vz[i], hW[i],
+							    mAx[i], hAx[i], mAy[i], hAy[i], mAz[i], hAz[i]);
+		err = cudaGetLastError(); if(err!=0)printf("err=%d, errS=%s, error may occur after Lanuch HG-WaveCL-mix\n",err, cudaGetErrorString(err) );
+		cudaDeviceSynchronize();
+#else
+		//for unequal space along X and Y. Recommend this to avoid forgetting to activate SimpleCar Marco
 		CalDiff<<<BPG[i],ThreadPerBlock>>>(Xvec, Yvec, Zvec, ConIndex, steph, matVx2Vz[i], matVy2Vz[i], mW[i], pd[i]);//mW used as W
 		err = cudaGetLastError(); if(err!=0)printf("err=%d, errS=%s, error may occur after Lanuch HG-DiffCL\n",err, cudaGetErrorString(err) );
 		cudaDeviceSynchronize();
@@ -1448,9 +1488,12 @@ if(Zvec==1) printf("F\n"); else printf("B\n");
 							    mAx[i], hAx[i], mAy[i], hAy[i], mAz[i], hAz[i]);
 		err = cudaGetLastError(); if(err!=0)printf("err=%d, errS=%s, error may occur after Lanuch HG-WaveCL\n",err, cudaGetErrorString(err) );
 		cudaDeviceSynchronize();
+#endif
+		
 		}
 		else
 		{
+		//full curved grid
 		CalDiffCL<<<BPG[i],ThreadPerBlock>>>(Xvec, Yvec, Zvec, ConIndex, steph, matVx2Vz[i], matVy2Vz[i], mW[i], pd[i]);//mW used as W
 		err = cudaGetLastError(); if(err!=0)printf("err=%d, errS=%s, error may occur after Lanuch DiffCL\n",err, cudaGetErrorString(err) );
 		cudaDeviceSynchronize();
@@ -1463,8 +1506,13 @@ if(Zvec==1) printf("F\n"); else printf("B\n");
 			
 		
 #ifdef CondFreeTIMG
+#ifdef SimpleCar
+ 	     	CalTIMGmix<<<BPG[i].y,BPG[i].x>>>(Xvec,Yvec,Zvec, steph, mpa[i].rho, drv[i], mW[i], hW[i], 
+      						   mAx[i], hAx[i], mAy[i], hAy[i], apr[i]);//mW used as W
+#else		
 		CalTIMG<<<BPG[i].y,BPG[i].x>>>(Xvec,Yvec,Zvec, steph, mpa[i].rho, drv[i], mW[i], hW[i], 
-							   mAx[i], hAx[i], mAy[i], hAy[i], apr[i]);//mW used as W
+						   mAx[i], hAx[i], mAy[i], hAy[i], apr[i]);//mW used as W
+#endif
 		err = cudaGetLastError(); if(err!=0)printf("err=%d, errS=%s, error may occur after Lanuch TIMG\n",err, cudaGetErrorString(err) );
 		cudaDeviceSynchronize();
 #endif
@@ -1547,8 +1595,6 @@ if(Zvec==1) printf("F\n"); else printf("B\n");
 	}
 	
 	//(*currT)++;//simulate one step forward
-
-	
 
 }
 
@@ -2031,6 +2077,7 @@ void ChildProcs::ParH2D()
 				Rindex = (idx-Cid.xl[i]+LenFD)*(Cid.yu[i]-Cid.yd[i]+1+2*LenFD)*cdx.nz + (idy-Cid.yd[i]+LenFD)*cdx.nz;
 
 				//drv;
+#ifndef SimpleCar	
 				err = cudaMemcpy(drv[i].xix+Rindex,   H_drv.xix+Gindex, cdx.nz*sizeof(Real), cudaMemcpyHostToDevice);
 			if(err != 0) printf("err = %d, errS=%s, error may occur at parh2d mmecpy drv_xix\n",err, cudaGetErrorString(err) );
 				err = cudaMemcpy(drv[i].xiy+Rindex,   H_drv.xiy+Gindex, cdx.nz*sizeof(Real), cudaMemcpyHostToDevice);
@@ -2043,6 +2090,7 @@ void ChildProcs::ParH2D()
 			if(err != 0) printf("err = %d, errS=%s, error may occur at parh2d mmecpy drv_etay\n",err, cudaGetErrorString(err) );
 				err = cudaMemcpy(drv[i].etaz+Rindex,  H_drv.etaz+Gindex, cdx.nz*sizeof(Real), cudaMemcpyHostToDevice);
 			if(err != 0) printf("err = %d, errS=%s, error may occur at parh2d mmecpy drv_etaz\n",err, cudaGetErrorString(err) );
+#endif	
 				err = cudaMemcpy(drv[i].zetax+Rindex, H_drv.zetax+Gindex, cdx.nz*sizeof(Real), cudaMemcpyHostToDevice);
 			if(err != 0) printf("err = %d, errS=%s, error may occur at parh2d mmecpy drv_zetax\n",err, cudaGetErrorString(err) );
 				err = cudaMemcpy(drv[i].zetay+Rindex, H_drv.zetay+Gindex, cdx.nz*sizeof(Real), cudaMemcpyHostToDevice);
@@ -2172,9 +2220,10 @@ void ChildProcs::ParH2D()
 
 	delete [] H_drv.jac;
 	delete [] H_drv.zetaz;	delete [] H_drv.zetay;	delete [] H_drv.zetax;
+#ifndef SimpleCar
 	delete [] H_drv.etaz;	delete [] H_drv.etay;	delete [] H_drv.etax;
 	delete [] H_drv.xiz;	delete [] H_drv.xiy;	delete [] H_drv.xix;
-
+#endif
 	fprintf(stdout,"Procs[%d], pass ParH2D()\n",HostMpiRank);
 }
 
@@ -2186,12 +2235,6 @@ void ChildProcs::C2DSnapPick()
 	int numD;
 	int nTime;
 	cudaError_t err;
-/*	
-	for(i=0;i<nsnap;i++)
-		for(j=0;j<CSpn[i];j++)
-			printf("inCal-Snapshot[%d],PCS[%d]->Rsn[%4d],Gsn[%4d]->(%3d,%3d,%3d),tinv=%d,cmp=%d\n",i+1,HostMpiRank,
-				HSpt[i].Rsn[j],HSpt[i].Gsn[j],HSpt[i].locx[j],HSpt[i].locy[j],HSpt[i].locz[j],HSpt[i].tinv,HSpt[i].cmp);
-*/	
 
 	for(i=0;i<nsnap;i++)
 	{
@@ -2207,8 +2250,6 @@ void ChildProcs::C2DSnapPick()
 				}
 			}
 			Cid.Snp[k][i] = numD;
-			//printf("inCal-Snap[%d],PCS[%d],Dev[%d],have point %d(CID->%d), in range(%d,%d)and(%d,%d)\n",
-			//	i+1,HostMpiRank,k,numD,Cid.Snp[k][i],Cid.xl[k],Cid.xr[k],Cid.yd[k],Cid.yu[k]);
 			
 			DSpt[i][k].Rsn = new int[numD]();	DSpt[i][k].Gsn = new int[numD]();
 			DSpt[i][k].locx = new int[numD]();	DSpt[i][k].locy = new int[numD]();	DSpt[i][k].locz = new int[numD]();
@@ -2507,11 +2548,8 @@ void ChildProcs::C2DFocalPick()
 
 	}
 	
-#ifdef SrcSmooth
 	int Src;
 	Src=0;
-#endif
-	
 	for(i=0;i<Cid.DNum;i++)
 	{
 		//assign DFpt in host and device side
@@ -3080,6 +3118,204 @@ void ChildProcs::abssyn(int TransDir)
 
 
 //-----------------------------------------kernel-----------------------------------------
+__global__ void perform(derivF drv, Real *out1)
+{
+	//int i,j,k;
+	int countX,countY,countZ;
+	int idx,idy,idz;
+	int Gindex;//valid physical point index
+	//int xiaoI;
+
+	for(countX=ipam[2]; countX<=ipam[3]; countX+=gridDim.y)//loop in current compute range with step of Launch Par
+	{
+		idx = countX + blockIdx.y;
+		if(idx<=ipam[3])//restrict to last index
+		{
+			for(countY=ipam[4]; countY<=ipam[5]; countY+=gridDim.x)
+			{
+				idy = countY + blockIdx.x;
+				if(idy<=ipam[5])
+				{
+					for(countZ=0; countZ<ipam[8]; countZ+=blockDim.x)
+					{
+						idz = countZ + threadIdx.x + LenFD;
+						if(idz<ipam[8]+LenFD)//vaild point with one virtual bounds
+						{
+							Gindex = idx*(ipam[7]+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+							//xiaoI = (idx-xstart)*(yend-ystart+1)*nk + (idy-ystart)*nk + idz;
+							
+							out1[Gindex] = drv.xix[Gindex];//data tranfer
+							//out1[Gindex] = drv.xix[Gindex] +  ( idz + idy*1E3 + idx*1E6 )*1E1;;//index check
+							//out1[Gindex] = drv.xix[Gindex] + ipam[0]*10+ipam[1]*100;//procs check
+
+						}//restrict idz;
+					}//loop countZ
+				}//restrict idy
+			}//loop countY
+		}//restrict idx
+	}//loop countX
+
+}
+
+__global__ void perform(mdparF mpa, Real *out1)
+{
+	//int i,j,k;
+	int countX,countY,countZ;
+	int idx,idy,idz;
+	int Gindex;//valid physical point index
+	//int xiaoI;
+
+	for(countX=ipam[2]; countX<=ipam[3]; countX+=gridDim.y)//loop in current compute range with step of Launch Par
+	{
+		idx = countX + blockIdx.y;
+		if(idx<=ipam[3])//restrict to last index
+		{
+			for(countY=ipam[4]; countY<=ipam[5]; countY+=gridDim.x)
+			{
+				idy = countY + blockIdx.x;
+				if(idy<=ipam[5])
+				{
+					for(countZ=0; countZ<ipam[8]; countZ+=blockDim.x)
+					{
+						idz = countZ + threadIdx.x + LenFD;
+						if(idz<ipam[8]+LenFD)//vaild point with one virtual bounds
+						{
+							Gindex = idx*(ipam[7]+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+							//xiaoI = (idx-xstart)*(yend-ystart+1)*nk + (idy-ystart)*nk + idz;
+							
+							out1[Gindex] = mpa.rho[Gindex];//data tranfer
+							//out1[Gindex] = mpa.alpha[Gindex] +  ( idz + idy*1E3 + idx*1E6 )*1E1;;//index check
+							//out1[Gindex] = mpa.beta[Gindex] + ipam[0]*10+ipam[1]*100;//procs check
+
+						}//restrict idz;
+					}//loop countZ
+				}//restrict idy
+			}//loop countY
+		}//restrict idx
+	}//loop countX
+
+}
+
+__global__ void perform2(derivF drv, mdparF mpa, apara apr, forceF frc, momentF mnt, int nfrc, int nmnt)
+{
+	int i,j,k;
+	int countX,countY,countZ;
+	int idx,idy,idz;
+	int Gindex;//valid physical point index
+	Real hah,heihei;
+	//int xiaoI;
+
+	int xinc,yinc;
+	int Ridx;
+
+	//regional IDY ---> global idy+(ipam[4]-LenFD)
+	//regional IDX ---> global idx+(ipam[2]-LenFD)+ipam[9]
+	
+	xinc = (ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD);
+	yinc = ipam[8]+2*LenFD;
+
+	for(countX=0; countX<=ipam[3]-ipam[2]; countX+=gridDim.y)//loop in current compute range with step of Launch Par
+	{
+		idx = countX + blockIdx.y + LenFD;
+		if(idx<=ipam[3]-ipam[2]+LenFD)//restrict to last index
+		{
+			for(countY=0; countY<=ipam[5]-ipam[4]; countY+=gridDim.x)
+			{
+				idy = countY + blockIdx.x + LenFD;
+				if(idy<=ipam[5]-ipam[4]+LenFD)
+				{
+					for(countZ=0; countZ<ipam[8]; countZ+=blockDim.x)
+					{
+						idz = countZ + threadIdx.x + LenFD;
+						if(idz<ipam[8]+LenFD)//vaild point with one virtual bounds
+						{
+							Gindex = idx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+							//xiaoI = (idx-xstart)*(yend-ystart+1)*nk + (idy-ystart)*nk + idz;
+							
+							hah = mpa.rho[Gindex];//data tranfer
+							heihei = drv.jac[Gindex];//data tranfer
+							//out1[Gindex] = mpa.alpha[Gindex] +  ( idz + idy*1E3 + idx*1E6 )*1E1;;//index check
+							//out1[Gindex] = mpa.beta[Gindex] + ipam[0]*10+ipam[1]*100;//procs check
+
+//if( idx+(ipam[2]-LenFD)+ipam[9] == 103 && idy+(ipam[4]-LenFD)== 103 && idz== 200)
+if( idx == 3 && idy == 3 && idz== 4)
+{
+	printf("at Pcs[%d]-Dev[%d],(%d,%d,%d)--->rho=%f,jac=%f\n",ipam[1],ipam[0],idx,idy,idz,hah,heihei);
+	for(i=0;i<=3;i++)
+	{
+		//Ridx = Gindex - i*xinc;
+		//printf("X-dir:at(%d,%d,%d){%d,%d,%d},jac=%g,xi=%g %g %g,eta=%g %g %g,zt=%g %g %g,mpa=%g %g %g\n",
+		//	idx-i,idy,idz,idx-i+ipam[2]-LenFD+ipam[9],idy+ipam[4]-LenFD,idz,
+		//	drv.jac[Ridx],
+		//	drv.xix[Ridx],drv.xiy[Ridx],drv.xiz[Ridx],
+		//	drv.etax[Ridx],drv.etay[Ridx],drv.etaz[Ridx],
+		//	drv.zetax[Ridx],drv.zetay[Ridx],drv.zetaz[Ridx],
+		//	mpa.alpha[Ridx],mpa.beta[Ridx],mpa.rho[Ridx]);
+		Ridx = Gindex - i*yinc;
+		printf("X-dir:at(%d,%d,%d){%d,%d,%d},jac=%g,xi=%g %g %g,eta=%g %g %g,zt=%g %g %g,mpa=%g %g %g\n",
+			idx,idy-i,idz,idx+ipam[2]-LenFD+ipam[9],idy-i+ipam[4]-LenFD,idz,
+			drv.jac[Ridx],
+			drv.xix[Ridx],drv.xiy[Ridx],drv.xiz[Ridx],
+			drv.etax[Ridx],drv.etay[Ridx],drv.etaz[Ridx],
+			drv.zetax[Ridx],drv.zetay[Ridx],drv.zetaz[Ridx],
+			mpa.alpha[Ridx],mpa.beta[Ridx],mpa.rho[Ridx]);
+	}
+}
+
+						}//restrict idz;
+					}//loop countZ
+				}//restrict idy
+			}//loop countY
+		}//restrict idx
+	}//loop countX
+
+}
+
+__global__ void perform3(forceF frc, momentF mnt, int nfrc, int nmnt)
+{
+	//int i,j,k;
+	//int countX,countY,countZ;
+	int modX,modY,modZ;
+	//int idx,idy,idz;
+	//int Gindex;//valid physical point index
+	Real hah,heihei;
+	//int xiaoI;
+	int i;
+	int xinc,yinc;
+	//int Ridx;
+
+	//regional IDY ---> global idy+(ipam[4]-LenFD)
+	//regional IDX ---> global idx+(ipam[2]-LenFD)+ipam[9]
+	
+	xinc = (ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD);
+	yinc = ipam[8]+2*LenFD;
+
+
+if(blockIdx.y==0 && blockIdx.x==0 && threadIdx.x==0)
+{
+	for(i=0;i<nfrc;i++)
+	{
+		modX = frc.locx[i]-ipam[9]-(ipam[2]-LenFD);
+		modY = frc.locy[i]-(ipam[4]-LenFD);
+		modZ = frc.locz[i];
+		if( i<nfrc && frc.locx[i]-ipam[9] >= ipam[2] && frc.locx[i]-ipam[9] <=ipam[3] && frc.locy[i] >=ipam[4] && frc.locy[i] <=ipam[5] )
+		printf("at Pcs[%d]Dev[%d]--->FORCE[%d]:(%d,%d,%d),range=(%d,%d)and(%d,%d),modXYZ=(%d,%d,%d)\n",
+			ipam[1],ipam[0],i, frc.locx[i],frc.locy[i],frc.locz[i], ipam[2],ipam[3], ipam[4],ipam[5], modX,modY,modZ);
+	}
+	for(i=0;i<nmnt;i++)
+	{
+		modX = mnt.locx[i]-ipam[9]-(ipam[2]-LenFD);
+		modY = mnt.locy[i]-(ipam[4]-LenFD);
+		modZ = mnt.locz[i];
+		if( i<nmnt && mnt.locx[i]-ipam[9] >= ipam[2] && mnt.locx[i]-ipam[9] <=ipam[3] && mnt.locy[i] >=ipam[4] && mnt.locy[i] <=ipam[5] )
+		printf("at Pcs[%d]Dev[%d]--->MOMENT[%d]:(%d,%d,%d),range=(%d,%d)and(%d,%d),modXYZ=(%d,%d,%d)\n",
+			ipam[1],ipam[0],i, mnt.locx[i],mnt.locy[i],mnt.locz[i], ipam[2],ipam[3], ipam[4],ipam[5], modX,modY,modZ);
+	}
+}
+
+
+
+}
 
 __global__ void VelPDcoeff(derivF drv, mdparF mpa, apara apr, Real *matVx2Vz, Real *matVy2Vz)
 {
@@ -3123,12 +3359,21 @@ __global__ void VelPDcoeff(derivF drv, mdparF mpa, apara apr, Real *matVx2Vz, Re
 					lam2mu = mpa.rho[Gindex]*mpa.alpha[Gindex]*mpa.alpha[Gindex];
 					lambda = lam2mu - 2.0*miu;
 
+#ifndef SimpleCar
 					e11 = drv.xix[Gindex];
 					e12 = drv.xiy[Gindex];
 					e13 = drv.xiz[Gindex];
 					e21 = drv.etax[Gindex];
 					e22 = drv.etay[Gindex];
 					e23 = drv.etaz[Gindex];
+#else
+					e11 = 1;
+					e12 = 0;
+					e13 = 0;
+					e21 = 0;
+					e22 = 1;
+					e23 = 0;
+#endif
 					e31 = drv.zetax[Gindex];
 					e32 = drv.zetay[Gindex];
 					e33 = drv.zetaz[Gindex];
@@ -3220,6 +3465,44 @@ __device__ void matinv(Real *A)
 	}
 }
 
+__global__ void perform(mdparF mpa, Real *out1, int D_id, int C_id, int xstart, int xend, int ystart, int yend, int ni, int nj, int nk)
+{
+	//int i,j,k;
+	int countX,countY,countZ;
+	int idx,idy,idz;
+	int Gindex;//valid physical point index
+	//int xiaoI;
+
+	for(countX=xstart; countX<=xend; countX+=gridDim.y)//loop in current compute range with step of Launch Par
+	{
+		idx = countX + blockIdx.y;
+		if(idx<=xend)//restrict to last index
+		{
+			for(countY=ystart; countY<=yend; countY+=gridDim.x)
+			{
+				idy = countY + blockIdx.x;
+				if(idy<=yend)
+				{
+					for(countZ=0; countZ<nk; countZ+=blockDim.x)
+					{
+						idz = countZ + threadIdx.x + LenFD;
+						if(idx<nk+LenFD)//vaild point with one virtual bounds
+						{
+							Gindex = idx*(nj+2*LenFD)*(nk+2*LenFD) + idy*(nk+2*LenFD) + idz;
+							//xiaoI = (idx-xstart)*(yend-ystart+1)*nk + (idy-ystart)*nk + idz;
+							
+							out1[Gindex] = mpa.rho[Gindex];//data tranfer
+							//out1[Gindex] = drv.xix[Gindex] +  ( idz + idy*1E3 + idx*1E6 )*1E1;;//index check
+							//out1[Gindex] = drv.xix[Gindex] + D_id*10+C_id*100;//procs check
+
+						}//restrict idz;
+					}//loop countZ
+				}//restrict idy
+			}//loop countY
+		}//restrict idx
+	}//loop countX
+
+}
 
 __global__ void perform()
 {
@@ -3227,6 +3510,47 @@ __global__ void perform()
 	for(int i=0;i<11;i++)
 		printf("%d ",ipam[i]);
 	printf("\n");
+}
+__global__ void perform(Real *Ex, Real *Ey, Real *Ez, forceF frc, momentF mnt, int Drank, int Cstart, int myid)
+{
+	//int i,j,k;
+	int countX,countY,countZ;
+	int idx,idy,idz;
+	//int Gindex;//valid physical point index
+
+	for(countX=ipam[2]; countX<=ipam[3]; countX+=gridDim.y)//loop in current compute range with step of Launch Par
+	{
+		idx = countX + blockIdx.y;
+		if(idx<=ipam[3])//restrict to last index
+		{
+			
+			for(countY=ipam[4]; countY<=ipam[5]; countY+=gridDim.x)
+			{
+				idy = countY + blockIdx.x;
+				if(idy<=ipam[5])
+				{
+					for(countZ=0; countZ<ipam[8]; countZ+=blockDim.x)
+					{
+						idz = countZ + threadIdx.x + LenFD;
+						if(idz<ipam[8]+LenFD)//vaild point with one virtual bounds
+						{
+							//Gindex = idx*(ipam[7]+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+
+							if( idx + Cstart == mnt.locx[0] && idy == mnt.locy[0] && idz == mnt.locz[0])
+								printf("at(%d,%d,%d) active moment Procs[%d].dev[%d] and Cstart=%d\n",
+									idx,idy,idz,myid,Drank,Cstart);
+							if( idx + Cstart == frc.locx[0] && idy == frc.locy[0] && idz == frc.locz[0])
+								printf("at(%d,%d,%d) active force Procs[%d].dev[%d] and Cstart=%d\n",
+									idx,idy,idz,myid,Drank,Cstart);
+
+						}//restrict idz;
+					}//loop countZ
+				}//restrict idy
+			}//loop countY
+			
+		}//restrict idx
+	}//loop countX
+
 }
 
 __global__ void generatewave(wfield wfake, int time, int Cstart)
@@ -3651,11 +3975,6 @@ __global__ void CalWave(int ConIndex, derivF drv, mdparF mpa, PartialD pd, apara
 							hW.Vy[Gindex] = DxiVy/Bx + DetVy/By + DztVy/Bz;
 							hW.Vz[Gindex] = DxiVz/Bx + DetVz/By + DztVz/Bz;
 
-#ifdef DisBug
-//if(zbx == idx+(ipam[2]-LenFD)+ipam[9] && zby == idy+(ipam[4]-LenFD) && zbz == idz)
-//	printf("at PCS[%d]DEV[%d](%d,%d,%d),CalWave->hW.Txx=%e, DxiTxx=%e, DetTxx=%e, DztTxx=%e, Bx=%e,By=%e,Bz=%e\n",
-//		ipam[2],ipam[1], zbx,zby,zbz, hW.Txx[Gindex], DxiTxx,DetTxx,DztTxx, Bx,By,Bz);
-#endif
 
 #ifdef CFSPML
 #ifdef CondFree
@@ -3799,6 +4118,508 @@ __global__ void CalWave(int ConIndex, derivF drv, mdparF mpa, PartialD pd, apara
 
 }
 
+__global__ void CalDiffmix(int Xvec, int Yvec, int Zvec, int ConIndex, Real steph, Real *CoVx, Real* CoVy, wfield W, PartialD pd)
+{
+	//int i,j,k;
+	int countX,countY,countZ;
+	int idx,idy,idz;
+	int Gindex;//valid physical point index
+	int xiaoI;
+#ifdef HYindex	
+	int Hyindex;
+#endif
+
+	Real xstep, ystep, zstep;
+	int xinc, yinc, zinc;
+	
+	xstep = steph*Xvec;
+	ystep = steph*Yvec;
+	zstep = steph*Zvec;
+	xinc = Xvec*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD);//skip cdx.ny*cdx.nz
+	yinc = Yvec*(ipam[8]+2*LenFD);//skip cdx.nz
+	zinc = Zvec*1;//skip 1
+
+
+	//generally use DRP/opt MacCormack scheme to get derivative, as Equation 2.23 and coefficients is Equation 2.24 in Thesis.
+	//for the top layer transfrom the derivative of xi and eta to get zeta direction derivative, as Equation 3.4 in Thesis.
+	
+	for(countX=0; countX<=ipam[3]-ipam[2]; countX+=gridDim.y)//loop in current device compute range with step of Launch Par
+	{
+		idx = countX + blockIdx.y + LenFD;
+		if(idx<=ipam[3]-ipam[2]+LenFD)//restrict to last index
+		{
+			for(countY=0; countY<=ipam[5]-ipam[4]; countY+=gridDim.x)
+			{
+				idy = countY + blockIdx.x + LenFD;
+				if(idy<=ipam[5]-ipam[4]+LenFD)
+				{
+					for(countZ=0; countZ<ipam[8]; countZ+=blockDim.x)
+					{
+						idz = countZ + threadIdx.x + LenFD;
+						//if(idz<ipam[8]+LenFD && idz>=ConIndex)//vaild point with one virtual bounds
+						if(idz<ipam[8]+LenFD)//vaild point with one virtual bounds
+						{
+
+							Gindex = idx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+							xiaoI = idx*(ipam[5]-ipam[4]+1+2*LenFD)*SeisGeo*SeisGeo + idy*SeisGeo*SeisGeo;//valid Y
+							
+							if(idz>=ConIndex)
+							{
+#ifdef HYindex
+								Hyindex = idx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+LenFD-ConIndex) 
+									+ idy*(ipam[8]+LenFD-ConIndex) + idz-ConIndex;
+								pd.DzTxx[Hyindex] = DRPFD( W.Txx, Gindex, zstep, zinc);
+								pd.DzTyy[Hyindex] = DRPFD( W.Tyy, Gindex, zstep, zinc);
+								pd.DzTxy[Hyindex] = DRPFD( W.Txy, Gindex, zstep, zinc);
+#else						
+								pd.DzTxx[Gindex] = DRPFD( W.Txx, Gindex, zstep, zinc);
+								pd.DzTyy[Gindex] = DRPFD( W.Tyy, Gindex, zstep, zinc);
+								pd.DzTxy[Gindex] = DRPFD( W.Txy, Gindex, zstep, zinc);
+#endif
+							}
+
+							pd.DxTxx[Gindex] = DRPFD( W.Txx, Gindex, xstep, xinc);
+							pd.DxTxy[Gindex] = DRPFD( W.Txy, Gindex, xstep, xinc);
+							pd.DxTxz[Gindex] = DRPFD( W.Txz, Gindex, xstep, xinc);
+							pd.DxVx[Gindex] = DRPFD( W.Vx, Gindex, xstep, xinc);
+							pd.DxVy[Gindex] = DRPFD( W.Vy, Gindex, xstep, xinc);
+							pd.DxVz[Gindex] = DRPFD( W.Vz, Gindex, xstep, xinc);
+
+							pd.DyTyy[Gindex] = DRPFD( W.Tyy, Gindex, ystep, yinc);
+							pd.DyTxy[Gindex] = DRPFD( W.Txy, Gindex, ystep, yinc);
+							pd.DyTyz[Gindex] = DRPFD( W.Tyz, Gindex, ystep, yinc);
+							pd.DyVx[Gindex] = DRPFD( W.Vx, Gindex, ystep, yinc);
+							pd.DyVy[Gindex] = DRPFD( W.Vy, Gindex, ystep, yinc);
+							pd.DyVz[Gindex] = DRPFD( W.Vz, Gindex, ystep, yinc);
+
+							pd.DzTzz[Gindex] = DRPFD( W.Tzz, Gindex, zstep, zinc);
+							pd.DzTxz[Gindex] = DRPFD( W.Txz, Gindex, zstep, zinc);
+							pd.DzTyz[Gindex] = DRPFD( W.Tyz, Gindex, zstep, zinc);
+#ifndef CondFree //no free surface == full space == should apply ABS							
+							pd.DzVx[Gindex] = DRPFD( W.Vx, Gindex, zstep, zinc);
+							pd.DzVy[Gindex] = DRPFD( W.Vy, Gindex, zstep, zinc);
+							pd.DzVz[Gindex] = DRPFD( W.Vz, Gindex, zstep, zinc);
+#endif
+
+							//  P(V3)/P(zeta), for VLOW, should deal with 3 top layer and other layer, totally 4 cases.
+							//		   for VUCD, should deal with 3 top layer and other layer, totally 4 cases.
+							//		   for Default, only deal with 1 top layer and other layer, totally 2 cases.
+							//		   VLOW and VUCD, pick one!
+
+
+#ifndef CondFreeVUCD//Velocity free surface condition---Unilateral compact difference
+#ifdef CondFreeVLOW
+							if(idz == ipam[8]+LenFD-1)//surface layer
+							{
+								//202
+						pd.DzVx[Gindex] = CoVx[xiaoI+0]*pd.DxVx[Gindex] + CoVx[xiaoI+1]*pd.DxVy[Gindex] + CoVx[xiaoI+2]*pd.DxVz[Gindex]
+								+ CoVy[xiaoI+0]*pd.DyVx[Gindex] + CoVy[xiaoI+1]*pd.DyVy[Gindex] + CoVy[xiaoI+2]*pd.DyVz[Gindex];
+						pd.DzVy[Gindex] = CoVx[xiaoI+3]*pd.DxVx[Gindex] + CoVx[xiaoI+4]*pd.DxVy[Gindex] + CoVx[xiaoI+5]*pd.DxVz[Gindex]
+								+ CoVy[xiaoI+3]*pd.DyVx[Gindex] + CoVy[xiaoI+4]*pd.DyVy[Gindex] + CoVy[xiaoI+5]*pd.DyVz[Gindex];
+						pd.DzVz[Gindex] = CoVx[xiaoI+6]*pd.DxVx[Gindex] + CoVx[xiaoI+7]*pd.DxVy[Gindex] + CoVx[xiaoI+8]*pd.DxVz[Gindex]
+								+ CoVy[xiaoI+6]*pd.DyVx[Gindex] + CoVy[xiaoI+7]*pd.DyVy[Gindex] + CoVy[xiaoI+8]*pd.DyVz[Gindex];
+							}
+							else if(idz == ipam[8]+LenFD-2)//one layer inner surface
+							{
+								//201
+								pd.DzVx[Gindex] = M22FD( W.Vx, Gindex, zstep, zinc);
+								pd.DzVy[Gindex] = M22FD( W.Vy, Gindex, zstep, zinc);
+								pd.DzVz[Gindex] = M22FD( W.Vz, Gindex, zstep, zinc);
+							}
+							else if(idz == ipam[8]+LenFD-3)//two layer inner surface
+							{
+								//200
+								pd.DzVx[Gindex] = M24FD( W.Vx, Gindex, zstep, zinc);
+								pd.DzVy[Gindex] = M24FD( W.Vy, Gindex, zstep, zinc);
+								pd.DzVz[Gindex] = M24FD( W.Vz, Gindex, zstep, zinc);
+							}
+							else
+							{
+								pd.DzVx[Gindex] = DRPFD( W.Vx, Gindex, zstep, zinc);
+								pd.DzVy[Gindex] = DRPFD( W.Vy, Gindex, zstep, zinc);
+								pd.DzVz[Gindex] = DRPFD( W.Vz, Gindex, zstep, zinc);
+							}
+#endif// end of with VLOW
+#endif// end of without VUCD
+
+#if !defined(CondFreeVLOW) && !defined(CondFreeVUCD)
+#ifdef CondFree
+							//if there is a free surface condition
+							//the Dz in top surface must be accquired by Dx and Dy
+							if(idz == ipam[8]+LenFD-1)//surface layer
+							{
+						pd.DzVx[Gindex] = CoVx[xiaoI+0]*pd.DxVx[Gindex] + CoVx[xiaoI+1]*pd.DxVy[Gindex] + CoVx[xiaoI+2]*pd.DxVz[Gindex]
+								+ CoVy[xiaoI+0]*pd.DyVx[Gindex] + CoVy[xiaoI+1]*pd.DyVy[Gindex] + CoVy[xiaoI+2]*pd.DyVz[Gindex];
+						pd.DzVy[Gindex] = CoVx[xiaoI+3]*pd.DxVx[Gindex] + CoVx[xiaoI+4]*pd.DxVy[Gindex] + CoVx[xiaoI+5]*pd.DxVz[Gindex]
+								+ CoVy[xiaoI+3]*pd.DyVx[Gindex] + CoVy[xiaoI+4]*pd.DyVy[Gindex] + CoVy[xiaoI+5]*pd.DyVz[Gindex];
+						pd.DzVz[Gindex] = CoVx[xiaoI+6]*pd.DxVx[Gindex] + CoVx[xiaoI+7]*pd.DxVy[Gindex] + CoVx[xiaoI+8]*pd.DxVz[Gindex]
+								+ CoVy[xiaoI+6]*pd.DyVx[Gindex] + CoVy[xiaoI+7]*pd.DyVy[Gindex] + CoVy[xiaoI+8]*pd.DyVz[Gindex];
+							}
+							else
+							{
+								pd.DzVx[Gindex] = DRPFD( W.Vx, Gindex, zstep, zinc);
+								pd.DzVy[Gindex] = DRPFD( W.Vy, Gindex, zstep, zinc);
+								pd.DzVz[Gindex] = DRPFD( W.Vz, Gindex, zstep, zinc);
+							}
+#endif//end of define CondFree(except vlow and vucd)
+#endif//end of doesnot define VLOW and VUCD
+
+
+						}//restrict idz;
+					}//loop countZ
+				}//restrict idy
+			}//loop countY
+		}//restrict idx
+	}//loop countX
+
+}
+
+__global__ void CalWavemix(int ConIndex, derivF drv, mdparF mpa, PartialD pd, apara apr, Real *CoVx, Real *CoVy, wfield hW,
+			  wfield Ax, wfield hAx, wfield Ay, wfield hAy, wfield Az, wfield hAz)
+{
+	//int i,j,k;
+	int countX,countY,countZ;
+	int idx,idy,idz;
+	int Gindex;//valid physical point index
+#ifdef HYindex	
+	int Hyindex;
+#endif	
+
+	Real lambda,miu,rho,lam2mu;
+	//Real xix,xiy,xiz, etx,ety,etz, ztx,zty,ztz;//covariants
+	Real ztx,zty,ztz;//covariants
+	
+	Real DxiVx,DetVx,DztVx, DxiVy,DetVy,DztVy, DxiVz,DetVz,DztVz;
+	Real DxiTxx,DetTxx,DztTxx, DxiTyy,DetTyy,DztTyy, DxiTzz,DetTzz,DztTzz;
+	Real DxiTxy,DetTxy,DztTxy, DxiTxz,DetTxz,DztTxz, DxiTyz,DetTyz,DztTyz;
+	Real Bx,By,Bz;//absorb boundary pars
+
+#ifdef CFSPML
+	Real APDx,APDy,APDz, DBx,DBy,DBz;
+	int Pidx,tempIdx;
+#ifdef CondFree	
+	Real DzVx1,DzVx2, DzVy1,DzVy2, DzVz1,DzVz2;
+	int xiaoI;
+#endif	
+#endif
+
+
+
+	//the time-domain derivative is get by two equations, the momentum equation and the genaralized hooke's equation, 
+	//which is Equation 2.20 and 2.21 respectively. And those two equation will also apply to the TIMG and VUCD free 
+	//surface conditions.
+
+	for(countX=0; countX<=ipam[3]-ipam[2]; countX+=gridDim.y)//loop in current device compute range with step of Launch Par
+	{
+		idx = countX + blockIdx.y + LenFD;
+		if(idx<=ipam[3]-ipam[2]+LenFD)//restrict to last index
+		{
+			for(countY=0; countY<=ipam[5]-ipam[4]; countY+=gridDim.x)
+			{
+				idy = countY + blockIdx.x + LenFD;
+				if(idy<=ipam[5]-ipam[4]+LenFD)
+				{
+					for(countZ=0; countZ<ipam[8]; countZ+=blockDim.x)
+					{
+						idz = countZ + threadIdx.x + LenFD;
+						//if(idz<ipam[8]+LenFD && idz>=ConIndex)//contain convers interface
+						if(idz<ipam[8]+LenFD)//contain convers interface
+						{
+
+							Gindex = idx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+							
+							rho = mpa.rho[Gindex];
+							miu = rho*mpa.beta[Gindex]*mpa.beta[Gindex];
+							lam2mu = rho*mpa.alpha[Gindex]*mpa.alpha[Gindex];
+							lambda = lam2mu - 2.0*miu;
+							rho = 1.0/rho;
+
+							ztz = drv.zetaz[Gindex];
+							
+							if(idz>=ConIndex)
+							{
+
+								ztx = drv.zetax[Gindex];
+								zty = drv.zetay[Gindex];
+#ifdef HYindex
+								Hyindex = idx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+LenFD-ConIndex) 
+									+ idy*(ipam[8]+LenFD-ConIndex) + idz-ConIndex;
+								//hVx
+								DxiVx = pd.DxTxx[Gindex]*rho;
+								DetVx = pd.DyTxy[Gindex]*rho;//HYGRID
+								DztVx = (ztx*pd.DzTxx[Hyindex] + zty*pd.DzTxy[Hyindex] + ztz*pd.DzTxz[Gindex])*rho;
+								
+								//hVy
+								DxiVy = pd.DxTxy[Gindex]*rho;//HYGRID
+								DetVy = pd.DyTyy[Gindex]*rho;
+								DztVy = (ztx*pd.DzTxy[Hyindex] + zty*pd.DzTyy[Hyindex] + ztz*pd.DzTyz[Gindex])*rho;
+								
+								//hVz
+								DxiVz = pd.DxTxz[Gindex]*rho;//HYGRID
+								DetVz = pd.DyTyz[Gindex]*rho;//HYGRID
+								DztVz = (ztx*pd.DzTxz[Gindex] + zty*pd.DzTyz[Gindex] + ztz*pd.DzTzz[Gindex])*rho;
+#else								
+								//hVx
+								DxiVx = pd.DxTxx[Gindex]*rho;
+								DetVx = pd.DyTxy[Gindex]*rho;
+								DztVx = (ztx*pd.DzTxx[Gindex] + zty*pd.DzTxy[Gindex] + ztz*pd.DzTxz[Gindex])*rho;
+								
+								//hVy
+								DxiVy = pd.DxTxy[Gindex]*rho;
+								DetVy = pd.DyTyy[Gindex]*rho;
+								DztVy = (ztx*pd.DzTxy[Gindex] + zty*pd.DzTyy[Gindex] + ztz*pd.DzTyz[Gindex])*rho;
+								
+								//hVz
+								DxiVz = pd.DxTxz[Gindex]*rho;
+								DetVz = pd.DyTyz[Gindex]*rho;
+								DztVz = (ztx*pd.DzTxz[Gindex] + zty*pd.DzTyz[Gindex] + ztz*pd.DzTzz[Gindex])*rho;
+#endif
+
+
+								//hTxx
+								DxiTxx = lam2mu*pd.DxVx[Gindex];
+								DetTxx = lambda*pd.DyVy[Gindex];
+								DztTxx = lam2mu*ztx*pd.DzVx[Gindex] + lambda*zty*pd.DzVy[Gindex] + lambda*ztz*pd.DzVz[Gindex];
+
+								//hTyy
+								DxiTyy = lambda*pd.DxVx[Gindex];
+								DetTyy = lam2mu*pd.DyVy[Gindex];
+								DztTyy = lambda*ztx*pd.DzVx[Gindex] + lam2mu*zty*pd.DzVy[Gindex] + lambda*ztz*pd.DzVz[Gindex];
+
+								//hTzz
+								DxiTzz = lambda*pd.DxVx[Gindex];
+								DetTzz = lambda*pd.DyVy[Gindex]; 
+								DztTzz = lambda*ztx*pd.DzVx[Gindex] + lambda*zty*pd.DzVy[Gindex] + lam2mu*ztz*pd.DzVz[Gindex];
+
+								//hTxy
+								DxiTxy = pd.DxVy[Gindex]*miu;
+								DetTxy = pd.DyVx[Gindex]*miu;
+								DztTxy = (zty*pd.DzVx[Gindex] + ztx*pd.DzVy[Gindex])*miu;
+
+								//hTxz
+								DxiTxz = pd.DxVz[Gindex]*miu;
+								DetTxz = 0.0;
+								DztTxz = (ztz*pd.DzVx[Gindex] + ztx*pd.DzVz[Gindex])*miu;
+
+								//hTyz
+								DxiTyz = 0.0;
+								DetTyz = pd.DyVz[Gindex]*miu;
+								DztTyz = (ztz*pd.DzVy[Gindex] + zty*pd.DzVz[Gindex])*miu;
+							}
+							else
+							{
+								
+								//hVx
+								DxiVx = rho*pd.DxTxx[Gindex];
+								DetVx = rho*pd.DyTxy[Gindex];
+								DztVx = ztz*pd.DzTxz[Gindex]*rho;
+
+								//hVy
+								DxiVy = rho*pd.DxTxy[Gindex];
+								DetVy = rho*pd.DyTyy[Gindex];
+								DztVy = ztz*pd.DzTyz[Gindex]*rho;
+
+								//hVz
+								DxiVz = rho*pd.DxTxz[Gindex];
+								DetVz = rho*pd.DyTyz[Gindex];
+								DztVz = ztz*pd.DzTzz[Gindex]*rho;
+
+								//hTxx
+								DxiTxx = lam2mu*pd.DxVx[Gindex];
+								DetTxx = lambda*pd.DyVy[Gindex];
+								DztTxx = lambda*ztz*pd.DzVz[Gindex];
+
+								//hTyy
+								DxiTyy = lambda*pd.DxVx[Gindex];
+								DetTyy = lam2mu*pd.DyVy[Gindex];
+								DztTyy = lambda*ztz*pd.DzVz[Gindex];
+
+								//hTzz
+								DxiTzz = lambda*pd.DxVx[Gindex];
+								DetTzz = lambda*pd.DyVy[Gindex];
+								DztTzz = lam2mu*ztz*pd.DzVz[Gindex];
+
+								//hTxy
+								DxiTxy = miu*pd.DxVy[Gindex];
+								DetTxy = miu*pd.DyVx[Gindex];
+								DztTxy = 0.0;
+
+								//hTxz
+								DxiTxz = miu*pd.DxVz[Gindex];
+								DetTxz = 0.0;
+								DztTxz = ztz*pd.DzVx[Gindex]*miu;
+
+								//hTyz
+								DxiTyz = 0.0;
+								DetTyz = miu*pd.DyVz[Gindex];
+								DztTyz = ztz*pd.DzVy[Gindex]*miu;
+								
+							}
+
+
+#ifdef CFSPML
+	APDx = apr.APDx[idx];	APDy = apr.APDy[idy];	APDz = apr.APDz[idz];
+	Bx = apr.Bx[idx];	By = apr.By[idy];	Bz = apr.Bz[idz];
+	DBx = apr.DBx[idx];	DBy = apr.DBy[idy];	DBz = apr.DBz[idz];
+#else	
+	Bx = 1.0;	By = 1.0;	Bz = 1.0;
+#endif
+
+							//time domain partial derivative--->wave field
+							hW.Txx[Gindex] = DxiTxx/Bx + DetTxx/By + DztTxx/Bz;
+							hW.Tyy[Gindex] = DxiTyy/Bx + DetTyy/By + DztTyy/Bz;
+							hW.Tzz[Gindex] = DxiTzz/Bx + DetTzz/By + DztTzz/Bz;
+							hW.Txy[Gindex] = DxiTxy/Bx + DetTxy/By + DztTxy/Bz;
+							hW.Txz[Gindex] = DxiTxz/Bx + DetTxz/By + DztTxz/Bz;
+							hW.Tyz[Gindex] = DxiTyz/Bx + DetTyz/By + DztTyz/Bz;
+							hW.Vx[Gindex] = DxiVx/Bx + DetVx/By + DztVx/Bz;
+							hW.Vy[Gindex] = DxiVy/Bx + DetVy/By + DztVy/Bz;
+							hW.Vz[Gindex] = DxiVz/Bx + DetVz/By + DztVz/Bz;
+
+
+#ifdef CFSPML
+#ifdef CondFree
+							//top surface partial derivative conversion
+							xiaoI=idx*(ipam[5]-ipam[4]+1+2*LenFD)*SeisGeo*SeisGeo + idy*SeisGeo*SeisGeo;//valid Y
+							
+							if(idz == ipam[8]+LenFD-1)//surface layer
+							{
+						DzVx1 = CoVx[xiaoI+0]*pd.DxVx[Gindex] + CoVx[xiaoI+1]*pd.DxVy[Gindex] + CoVx[xiaoI+2]*pd.DxVz[Gindex];
+						DzVx2 = CoVy[xiaoI+0]*pd.DyVx[Gindex] + CoVy[xiaoI+1]*pd.DyVy[Gindex] + CoVy[xiaoI+2]*pd.DyVz[Gindex];
+						DzVy1 = CoVx[xiaoI+3]*pd.DxVx[Gindex] + CoVx[xiaoI+4]*pd.DxVy[Gindex] + CoVx[xiaoI+5]*pd.DxVz[Gindex];
+						DzVy2 = CoVy[xiaoI+3]*pd.DyVx[Gindex] + CoVy[xiaoI+4]*pd.DyVy[Gindex] + CoVy[xiaoI+5]*pd.DyVz[Gindex];
+						DzVz1 = CoVx[xiaoI+6]*pd.DxVx[Gindex] + CoVx[xiaoI+7]*pd.DxVy[Gindex] + CoVx[xiaoI+8]*pd.DxVz[Gindex];
+						DzVz2 = CoVy[xiaoI+6]*pd.DyVx[Gindex] + CoVy[xiaoI+7]*pd.DyVy[Gindex] + CoVy[xiaoI+8]*pd.DyVz[Gindex];
+							}
+#endif							
+							tempIdx = idx+(ipam[2]-LenFD)+ipam[9];//idx+ipam[9]
+							if(tempIdx<=apr.nabs[0]+LenFD-1 || tempIdx>=ipam[10]+LenFD-apr.nabs[1])//X-dir
+							{
+						tempIdx<apr.nabs[0]+LenFD ? Pidx=tempIdx-LenFD : Pidx=tempIdx-(ipam[10]+LenFD-apr.nabs[1])+apr.nabs[0];
+						Pidx = Pidx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+						
+						//wavefield attenuation (Equation 14 of Zhang 2010)
+						hW.Vx[Gindex]  -= Ax.Vx[Pidx]/Bx;  
+						hW.Vy[Gindex]  -= Ax.Vy[Pidx]/Bx;  
+						hW.Vz[Gindex]  -= Ax.Vz[Pidx]/Bx;
+						hW.Txx[Gindex] -= Ax.Txx[Pidx]/Bx;
+						hW.Tyy[Gindex] -= Ax.Tyy[Pidx]/Bx;
+						hW.Tzz[Gindex] -= Ax.Tzz[Pidx]/Bx;
+						hW.Txy[Gindex] -= Ax.Txy[Pidx]/Bx;
+						hW.Txz[Gindex] -= Ax.Txz[Pidx]/Bx;
+						hW.Tyz[Gindex] -= Ax.Tyz[Pidx]/Bx;
+						
+						//ADE update (Equation A10 of Zhang 2010)
+						hAx.Vx[Pidx]  = DxiVx*DBx - APDx*Ax.Vx[Pidx];
+						hAx.Vy[Pidx]  = DxiVy*DBx - APDx*Ax.Vy[Pidx];
+						hAx.Vz[Pidx]  = DxiVz*DBx - APDx*Ax.Vz[Pidx];
+						hAx.Txx[Pidx] = DxiTxx*DBx - APDx*Ax.Txx[Pidx];
+						hAx.Tyy[Pidx] = DxiTyy*DBx - APDx*Ax.Tyy[Pidx];
+						hAx.Tzz[Pidx] = DxiTzz*DBx - APDx*Ax.Tzz[Pidx];
+						hAx.Txy[Pidx] = DxiTxy*DBx - APDx*Ax.Txy[Pidx];
+						hAx.Txz[Pidx] = DxiTxz*DBx - APDx*Ax.Txz[Pidx];
+						hAx.Tyz[Pidx] = DxiTyz*DBx - APDx*Ax.Tyz[Pidx];
+
+#ifdef CondFree
+						//top surface 
+								if(idz == ipam[8]+LenFD-1)
+								{
+							hAx.Txx[Pidx] += DBx*Bx*( lam2mu*ztx*DzVx1 + lambda*zty*DzVy1 + lambda*ztz*DzVz1);
+							hAx.Tyy[Pidx] += DBx*Bx*( lambda*ztx*DzVx1 + lam2mu*zty*DzVy1 + lambda*ztz*DzVz1);
+							hAx.Tzz[Pidx] += DBx*Bx*( lambda*ztx*DzVx1 + lambda*zty*DzVy1 + lam2mu*ztz*DzVz1);
+							hAx.Txy[Pidx] += DBx*Bx*( zty*DzVx1 + ztx*DzVy1 )*miu; 
+							hAx.Txz[Pidx] += DBx*Bx*( ztz*DzVx1 + ztx*DzVz1 )*miu; 
+							hAx.Tyz[Pidx] += DBx*Bx*( ztz*DzVy1 + zty*DzVz1 )*miu; 
+								}
+#endif						
+
+							}
+							
+							tempIdx = idy + (ipam[4]-LenFD);//idy
+							if(tempIdx<=apr.nabs[2]+LenFD-1 || tempIdx>=ipam[7]+LenFD-apr.nabs[3])//Y-dir
+							{
+						tempIdx<apr.nabs[2]+LenFD ? Pidx=tempIdx-LenFD : Pidx=tempIdx-(ipam[7]+LenFD-apr.nabs[3])+apr.nabs[2];		
+						Pidx = Pidx*(ipam[3]-ipam[2]+1+2*LenFD)*(ipam[8]+2*LenFD) + idx*(ipam[8]+2*LenFD) + idz;		
+						
+						//wavefield attenuation (Equation 14 of Zhang 2010)
+						hW.Vx[Gindex]  -= Ay.Vx[Pidx]/By;  
+						hW.Vy[Gindex]  -= Ay.Vy[Pidx]/By;  
+						hW.Vz[Gindex]  -= Ay.Vz[Pidx]/By;
+						hW.Txx[Gindex] -= Ay.Txx[Pidx]/By;
+						hW.Tyy[Gindex] -= Ay.Tyy[Pidx]/By;
+						hW.Tzz[Gindex] -= Ay.Tzz[Pidx]/By;
+						hW.Txy[Gindex] -= Ay.Txy[Pidx]/By;
+						hW.Txz[Gindex] -= Ay.Txz[Pidx]/By;
+						hW.Tyz[Gindex] -= Ay.Tyz[Pidx]/By;
+						
+						//ADE update (Equation A10 of Zhang 2010)
+						hAy.Vx[Pidx]  = DetVx*DBy - APDy*Ay.Vx[Pidx];
+						hAy.Vy[Pidx]  = DetVy*DBy - APDy*Ay.Vy[Pidx];
+						hAy.Vz[Pidx]  = DetVz*DBy - APDy*Ay.Vz[Pidx];
+						hAy.Txx[Pidx] = DetTxx*DBy - APDy*Ay.Txx[Pidx];
+						hAy.Tyy[Pidx] = DetTyy*DBy - APDy*Ay.Tyy[Pidx];
+						hAy.Tzz[Pidx] = DetTzz*DBy - APDy*Ay.Tzz[Pidx];
+						hAy.Txy[Pidx] = DetTxy*DBy - APDy*Ay.Txy[Pidx];
+						hAy.Txz[Pidx] = DetTxz*DBy - APDy*Ay.Txz[Pidx];
+						hAy.Tyz[Pidx] = DetTyz*DBy - APDy*Ay.Tyz[Pidx];
+
+#ifdef CondFree
+						//top surface 
+								if(idz == ipam[8]+LenFD-1)
+								{
+							hAy.Txx[Pidx] += DBy*By*( lam2mu*ztx*DzVx2 + lambda*zty*DzVy2 + lambda*ztz*DzVz2);
+							hAy.Tyy[Pidx] += DBy*By*( lambda*ztx*DzVx2 + lam2mu*zty*DzVy2 + lambda*ztz*DzVz2);
+							hAy.Tzz[Pidx] += DBy*By*( lambda*ztx*DzVx2 + lambda*zty*DzVy2 + lam2mu*ztz*DzVz2);
+							hAy.Txy[Pidx] += DBy*By*( zty*DzVx2 + ztx*DzVy2 )*miu; 
+							hAy.Txz[Pidx] += DBy*By*( ztz*DzVx2 + ztx*DzVz2 )*miu; 
+							hAy.Tyz[Pidx] += DBy*By*( ztz*DzVy2 + zty*DzVz2 )*miu; 
+								}
+#endif						
+							
+							}
+
+
+							if(idz<=apr.nabs[4]+LenFD-1 || idz>=ipam[8]+LenFD-apr.nabs[5])//Z-dir
+							{
+						idz<apr.nabs[4]+LenFD ? Pidx=idz-LenFD : Pidx=idz-(ipam[8]+LenFD-apr.nabs[5])+apr.nabs[4];		
+						Pidx = Pidx*(ipam[3]-ipam[2]+1+2*LenFD)*(ipam[5]-ipam[4]+1+2*LenFD) + idx*(ipam[5]-ipam[4]+1+2*LenFD) + idy;		
+							
+						//wavefield attenuation (Equation 14 of Zhang 2010)
+						hW.Vx[Gindex]  -= Az.Vx[Pidx]/Bz;  
+						hW.Vy[Gindex]  -= Az.Vy[Pidx]/Bz;  
+						hW.Vz[Gindex]  -= Az.Vz[Pidx]/Bz;
+						hW.Txx[Gindex] -= Az.Txx[Pidx]/Bz;
+						hW.Tyy[Gindex] -= Az.Tyy[Pidx]/Bz;
+						hW.Tzz[Gindex] -= Az.Tzz[Pidx]/Bz;
+						hW.Txy[Gindex] -= Az.Txy[Pidx]/Bz;
+						hW.Txz[Gindex] -= Az.Txz[Pidx]/Bz;
+						hW.Tyz[Gindex] -= Az.Tyz[Pidx]/Bz;
+						
+						//ADE update (Equation A10 of Zhang 2010)
+						hAz.Vx[Pidx]  = DztVx*DBz - APDz*Az.Vx[Pidx];
+						hAz.Vy[Pidx]  = DztVy*DBz - APDz*Az.Vy[Pidx];
+						hAz.Vz[Pidx]  = DztVz*DBz - APDz*Az.Vz[Pidx];
+						hAz.Txx[Pidx] = DztTxx*DBz - APDz*Az.Txx[Pidx];
+						hAz.Tyy[Pidx] = DztTyy*DBz - APDz*Az.Tyy[Pidx];
+						hAz.Tzz[Pidx] = DztTzz*DBz - APDz*Az.Tzz[Pidx];
+						hAz.Txy[Pidx] = DztTxy*DBz - APDz*Az.Txy[Pidx];
+						hAz.Txz[Pidx] = DztTxz*DBz - APDz*Az.Txz[Pidx];
+						hAz.Tyz[Pidx] = DztTyz*DBz - APDz*Az.Tyz[Pidx];
+							
+							}
+
+#endif
+
+						}//restrict idz;
+					}//loop countZ
+				}//restrict idy
+			}//loop countY
+		}//restrict idx
+	}//loop countX
+
+}
+
+
 __global__ void CalDiffCL(int Xvec, int Yvec, int Zvec, int ConIndex, Real steph, Real *CoVx, Real* CoVy, wfield W, PartialD pd)
 {
 	//int i,j,k;
@@ -3843,20 +4664,6 @@ __global__ void CalDiffCL(int Xvec, int Yvec, int Zvec, int ConIndex, Real steph
 							Gindex = idx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
 							xiaoI = idx*(ipam[5]-ipam[4]+1+2*LenFD)*SeisGeo*SeisGeo + idy*SeisGeo*SeisGeo;//valid Y
 
-#ifdef DisBug
-/*
-if( idx+(ipam[2]-LenFD)+ipam[9] >=96  && idx+(ipam[2]-LenFD)+ipam[9] <=100&& zby == idy+(ipam[4]-LenFD) && zbz == idz)
-{
-	printf(" -->W.Vy(%d,%d,%d)=%e\n",idx+(ipam[2]-LenFD)+ipam[9],zby,zbz,W.Vy[Gindex]);
-}
-*/
-if( idx+(ipam[2]-LenFD)+ipam[9] ==zbx && zby == idy+(ipam[4]-LenFD) && idz>=228 && idz<=233)
-{
-	printf(" -->(%d,%d,%d) Txx=%e, Tyy=%e, Tzz=%e\n\tTxy=%e, Txz=%e,Tzz=%e\n\tVx=%e Vy=%e Vz=%e\n",
-		zbx,zby,idz,W.Txx[Gindex],W.Tyy[Gindex],W.Tzz[Gindex],W.Txy[Gindex],W.Txz[Gindex],W.Tyz[Gindex],W.Vx[Gindex],W.Vy[Gindex],W.Vz[Gindex]);
-}
-
-#endif
 
 #ifdef HYindex
 							//with Hyindex
@@ -4433,68 +5240,68 @@ __global__ void CalWaveSL(int ConIndex, derivF drv, mdparF mpa, apara apr, Parti
 							lambda = lam2mu - 2.0*miu;
 							rho = 1.0/rho;
 							
-							xix = drv.xix[Gindex];
-							ety = drv.etay[Gindex];
+							//xix = drv.xix[Gindex];
+							//ety = drv.etay[Gindex];
 							//ztx = drv.zetax[Gindex];
 							//zty = drv.zetay[Gindex];
-							ztz = drv.zetaz[Gindex];
+							//ztz = drv.zetaz[Gindex];
 							//for hy1, for hy2 should add ztx and zty
 							//xiy,xiz,etax,etaz,should be 0 for straight line
 							//and xix,etay,zetax,zetay,zetaz has NO rotation property, only scaling property
 							//especailly in topo area Z varies in three direction, so zetax,zetay,zetaz all have scaling property
 
 							//hVx
-							DxiVx = rho*xix*pd.DxTxx[Gindex];
-							DetVx = rho*ety*pd.DyTxy[Gindex];
-							DztVx = rho*ztz*pd.DzTxz[Gindex];
+							DxiVx = rho*pd.DxTxx[Gindex];
+							DetVx = rho*pd.DyTxy[Gindex];
+							DztVx = rho*pd.DzTxz[Gindex];
 							//DztVx = rho*(ztx*pd.DzTxx[Gindex] + zty*pd.DzTxy[Gindex] + ztz*pd.DzTxz[Gindex]);
 
 							//hVy
-							DxiVy = rho*xix*pd.DxTxy[Gindex];
-							DetVy = rho*ety*pd.DyTyy[Gindex];
-							DztVy = rho*ztz*pd.DzTyz[Gindex];
+							DxiVy = rho*pd.DxTxy[Gindex];
+							DetVy = rho*pd.DyTyy[Gindex];
+							DztVy = rho*pd.DzTyz[Gindex];
 							//DztVy = rho*(ztx*pd.DzTxy[Gindex] + zty*pd.DzTyy[Gindex] + ztz*pd.DzTyz[Gindex]);
 
 							//hVz
-							DxiVz = rho*xix*pd.DxTxz[Gindex];
-							DetVz = rho*ety*pd.DyTyz[Gindex];
-							DztVz = rho*ztz*pd.DzTzz[Gindex];
+							DxiVz = rho*pd.DxTxz[Gindex];
+							DetVz = rho*pd.DyTyz[Gindex];
+							DztVz = rho*pd.DzTzz[Gindex];
 							//DztVz = rho*(ztx*pd.DzTxz[Gindex] + zty*pd.DzTyz[Gindex] + ztz*pd.DzTzz[Gindex]);
 
 							//hTxx
-							DxiTxx = lam2mu*xix*pd.DxVx[Gindex];
-							DetTxx = lambda*ety*pd.DyVy[Gindex];
-							DztTxx = lambda*ztz*pd.DzVz[Gindex];
+							DxiTxx = lam2mu*pd.DxVx[Gindex];
+							DetTxx = lambda*pd.DyVy[Gindex];
+							DztTxx = lambda*pd.DzVz[Gindex];
 							//DztTxx = lam2mu*ztx*pd.DzVx[Gindex] + lambda*zty*pd.DzVy[Gindex] + lambda*ztz*pd.DzVz[Gindex];
 
 							//hTyy
-							DxiTyy = lambda*xix*pd.DxVx[Gindex];
-							DetTyy = lam2mu*ety*pd.DyVy[Gindex];
-							DztTyy = lambda*ztz*pd.DzVz[Gindex];
+							DxiTyy = lambda*pd.DxVx[Gindex];
+							DetTyy = lam2mu*pd.DyVy[Gindex];
+							DztTyy = lambda*pd.DzVz[Gindex];
 							//DztTyy = lambda*ztx*pd.DzVx[Gindex] + lam2mu*zty*pd.DzVy[Gindex] + lambda*ztz*pd.DzVz[Gindex];
 
 							//hTzz
-							DxiTzz = lambda*xix*pd.DxVx[Gindex];
-							DetTzz = lambda*ety*pd.DyVy[Gindex];
-							DztTzz = lam2mu*ztz*pd.DzVz[Gindex];
+							DxiTzz = lambda*pd.DxVx[Gindex];
+							DetTzz = lambda*pd.DyVy[Gindex];
+							DztTzz = lam2mu*pd.DzVz[Gindex];
 							//DztTzz = lambda*ztx*pd.DzVx[Gindex] + lambda*zty*pd.DzVy[Gindex] + lam2mu*ztz*pd.DzVz[Gindex];
 
 							//hTxy
-							DxiTxy = miu*xix*pd.DxVy[Gindex];
-							DetTxy = miu*ety*pd.DyVx[Gindex];
+							DxiTxy = miu*pd.DxVy[Gindex];
+							DetTxy = miu*pd.DyVx[Gindex];
 							DztTxy = 0.0;
 							//DztTxy = miu*(zty*pd.DzVx[Gindex] + ztx*pd.DzVy[Gindex]);
 
 							//hTxz
-							DxiTxz = miu*xix*pd.DxVz[Gindex];
+							DxiTxz = miu*pd.DxVz[Gindex];
 							DetTxz = 0.0;
-							DztTxz = miu*ztz*pd.DzVx[Gindex];
+							DztTxz = miu*pd.DzVx[Gindex];
 							//DztTxz = miu*(ztz*pd.DzVx[Gindex] + ztx*pd.DzVz[Gindex]);
 
 							//hTyz
 							DxiTyz = 0.0;
-							DetTyz = miu*ety*pd.DyVz[Gindex];
-							DztTyz = miu*ztz*pd.DzVy[Gindex];
+							DetTyz = miu*pd.DyVz[Gindex];
+							DztTyz = miu*pd.DzVy[Gindex];
 							//DztTyz = miu*(ztz*pd.DzVy[Gindex] + zty*pd.DzVz[Gindex]);
 	
 #ifdef CFSPML
@@ -4858,6 +5665,237 @@ __global__ void CalTIMG(int Xvec, int Yvec, int Zvec, Real steph, Real *rho, der
 
 }
 
+__global__ void CalTIMGmix(int Xvec, int Yvec, int Zvec, Real steph, Real *rho, derivF drv, wfield W, wfield hW,
+			wfield Ax, wfield hAx, wfield Ay, wfield hAy, apara apr)
+{
+	//  <<<BPG.y, BPG.x>>>
+	//gridDim.x<=cdx.nx  blockDim.x<=cdx.ny
+	int i,j;
+	int countX,countY,countZ;
+	int idx,idy,idz;
+	int Gindex;//valid physical point index
+	int Relidx;//relative index
+
+	Real VecTx[LenFD*2+1], VecTy[LenFD*2+1], VecTz[LenFD*2+1];
+	Real DxTx,DyTy,DzTz;
+	Real Bx,By;//absorb boundary pars
+	Real rhojac;
+	Real xstep, ystep, zstep;
+	int xinc, yinc;
+	Real T3Src=0.0;//initial value
+
+#ifdef CFSPML
+	Real APDx,DBx, APDy,DBy;
+	int Pidx,tempIdx;
+#endif
+	
+	xstep = steph*Xvec;
+	ystep = steph*Yvec;
+	zstep = steph*Zvec;
+	//none direction
+	xinc = (ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD);//skip cdx.ny*cdx.nz
+	yinc = ipam[8]+2*LenFD;//skip cdx.nz
+
+	//the Traction Image method for free surface condition, use the conservative form momentum equation as Equation 3.11 in Thesis
+	
+	for(countX=0; countX<=ipam[3]-ipam[2]; countX+=gridDim.x)//loop in current compute range with step of Launch Par
+	{
+		idx = countX + blockIdx.x + LenFD;
+		if(idx<=ipam[3]-ipam[2]+LenFD)//restrict to last index
+		{
+			for(countY=0; countY<=ipam[5]-ipam[4]; countY+=blockDim.x)
+			{
+				idy = countY + threadIdx.x + LenFD;
+				if(idy<=ipam[5]-ipam[4]+LenFD)
+				{  
+					for(countZ=0; countZ<LenFD; countZ++)
+					{
+						idz = ipam[8] + countZ;//valid point number + LenFD = last location of valid point
+
+						Gindex = idx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+
+						rhojac = 1.0/rho[Gindex]/drv.jac[Gindex];
+
+#ifdef CFSPML
+	APDx = apr.APDx[idx];	APDy = apr.APDy[idy];
+	Bx = apr.Bx[idx];	By = apr.By[idy];
+	DBx = apr.DBx[idx];	DBy = apr.DBy[idy];
+#else	
+	Bx = 1.0;	By = 1.0;
+#endif
+
+						//X-dir
+						//vector of covariant pars multiplied directional stress
+						for(i=0;i<LenFD*2+1;i++)
+						{
+							Relidx = Gindex - LenFD*xinc;//X-dir
+							VecTx[i] = drv.jac[Relidx+i*xinc]*W.Txx[Relidx+i*xinc];
+
+							Relidx = Gindex - LenFD*yinc;//Y-dir
+							VecTy[i] = drv.jac[Relidx+i*yinc]*W.Txy[Relidx+i*yinc];
+											  
+
+							Relidx = Gindex - LenFD;//Z-dir
+							VecTz[i] = drv.jac[Relidx+i]*(drv.zetax[Relidx+i]*W.Txx[Relidx+i]+
+										      drv.zetay[Relidx+i]*W.Txy[Relidx+i]+
+										      drv.zetaz[Relidx+i]*W.Txz[Relidx+i]);
+						}
+
+						//traction image
+						for(j=1;j<=LenFD-(2-countZ);j++)
+							VecTz[LenFD + (2-countZ) + j] = 2.0*T3Src - VecTz[LenFD + (2-countZ) - j];//TxSrc
+						VecTz[LenFD + (2-countZ)] = T3Src;
+
+						//partial derivative vector
+						//the data has been already extracted from orignal array and put into new array point by point,
+						//so it doesn't need big step skip when do differential work, and only need direction information.
+						//the differential center is vector center.
+						DxTx = rhojac*strF( VecTx, LenFD, xstep, Xvec);
+						DyTy = rhojac*strF( VecTy, LenFD, ystep, Yvec);
+						DzTz = rhojac*strF( VecTz, LenFD, zstep, Zvec);
+
+						//time domain partial derivative--->wave field
+						hW.Vx[Gindex] = DxTx/Bx + DyTy/By + DzTz;
+
+#ifdef CFSPML
+				//if apply free surface condition, in top area of Z-dir will not apply absorbtion
+				//so nabs[5] equals 0, and related ADE wavefield(Az,hAz) will be none
+				//absorbing pars will be default APDz=0, DBz=0, Bz=1
+				//so the Z-top absorption is eliminated
+						//X dir absorption
+						tempIdx = idx + (ipam[2]-LenFD) + ipam[9];
+						if(tempIdx<=apr.nabs[0]+LenFD-1 || tempIdx>=ipam[10]+LenFD-apr.nabs[1])
+						{
+						tempIdx<apr.nabs[0]+LenFD ? Pidx=tempIdx-LenFD : Pidx=tempIdx-(ipam[10]+LenFD-apr.nabs[1])+apr.nabs[0];
+						Pidx = Pidx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+						
+						hW.Vx[Gindex] -= Ax.Vx[Pidx]/Bx;
+						hAx.Vx[Pidx] = DBx*DxTx - APDx*Ax.Vx[Pidx];
+						}
+
+
+						//Y dir absorption
+						tempIdx = idy + (ipam[4]-LenFD);
+						if(tempIdx<=apr.nabs[2]+LenFD-1 || tempIdx>=ipam[7]+LenFD-apr.nabs[3])
+						{
+						tempIdx<apr.nabs[2]+LenFD ? Pidx=tempIdx-LenFD : Pidx=tempIdx-(ipam[7]+LenFD-apr.nabs[3])+apr.nabs[2];
+						Pidx = Pidx*(ipam[3]-ipam[2]+1+2*LenFD)*(ipam[8]+2*LenFD) + idx*(ipam[8]+2*LenFD) + idz;
+
+						hW.Vx[Gindex] -= Ay.Vx[Pidx]/By;
+						hAy.Vx[Pidx] = DBy*DyTy - APDy*Ay.Vx[Pidx];
+						}
+
+
+#endif
+						
+						//Y-dir
+						for(i=0;i<LenFD*2+1;i++)
+						{
+							Relidx = Gindex - LenFD*xinc;
+							VecTx[i] = drv.jac[Relidx+i*xinc]*W.Txy[Relidx+i*xinc];
+							
+							Relidx = Gindex - LenFD*yinc;
+							VecTy[i] = drv.jac[Relidx+i*yinc]*W.Tyy[Relidx+i*yinc];
+											  
+							
+							Relidx = Gindex - LenFD;
+							VecTz[i] = drv.jac[Relidx+i]*(drv.zetax[Relidx+i]*W.Txy[Relidx+i]+
+										      drv.zetay[Relidx+i]*W.Tyy[Relidx+i]+
+										      drv.zetaz[Relidx+i]*W.Tyz[Relidx+i]);
+						}
+
+						for(j=1;j<=LenFD-(2-countZ);j++)
+							VecTz[LenFD + (2-countZ) + j] = 2.0*T3Src - VecTz[LenFD + (2-countZ) - j];//TySrc
+						VecTz[LenFD + (2-countZ)] = T3Src;
+
+						DxTx = rhojac*strF( VecTx, LenFD, xstep, Xvec);//LenFD means center
+						DyTy = rhojac*strF( VecTy, LenFD, ystep, Yvec);
+						DzTz = rhojac*strF( VecTz, LenFD, zstep, Zvec);
+
+						hW.Vy[Gindex] = DxTx/Bx + DyTy/By + DzTz;
+					
+#ifdef CFSPML
+						//X dir absorption
+						tempIdx = idx + (ipam[2]-LenFD) + ipam[9];
+						if(tempIdx<=apr.nabs[0]+LenFD-1 || tempIdx>=ipam[10]+LenFD-apr.nabs[1])
+						{
+						tempIdx<apr.nabs[0]+LenFD ? Pidx=tempIdx-LenFD : Pidx=tempIdx-(ipam[10]+LenFD-apr.nabs[1])+apr.nabs[0];
+						Pidx = Pidx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+						
+						hW.Vy[Gindex] -= Ax.Vy[Pidx]/Bx;
+						hAx.Vy[Pidx] = DBx*DxTx - APDx*Ax.Vy[Pidx];
+						}
+						//Y dir absorption
+						tempIdx = idy + (ipam[4]-LenFD);
+						if(tempIdx<=apr.nabs[2]+LenFD-1 || tempIdx>=ipam[7]+LenFD-apr.nabs[3])
+						{
+						tempIdx<apr.nabs[2]+LenFD ? Pidx=tempIdx-LenFD : Pidx=tempIdx-(ipam[7]+LenFD-apr.nabs[3])+apr.nabs[2];
+						Pidx = Pidx*(ipam[3]-ipam[2]+1+2*LenFD)*(ipam[8]+2*LenFD) + idx*(ipam[8]+2*LenFD) + idz;
+
+						hW.Vy[Gindex] -= Ay.Vy[Pidx]/By;
+						hAy.Vy[Pidx] = DBy*DyTy - APDy*Ay.Vy[Pidx];
+						}
+
+#endif
+						//Z-dir
+						for(i=0;i<LenFD*2+1;i++)
+						{
+							Relidx = Gindex - LenFD*xinc;
+							VecTx[i] = drv.jac[Relidx+i*xinc]*W.Txz[Relidx+i*xinc];
+							
+							Relidx = Gindex - LenFD*yinc;
+							VecTy[i] = drv.jac[Relidx+i*yinc]*W.Tyz[Relidx+i*yinc];
+							
+							Relidx = Gindex - LenFD;
+							VecTz[i] = drv.jac[Relidx+i]*(drv.zetax[Relidx+i]*W.Txz[Relidx+i]+
+										      drv.zetay[Relidx+i]*W.Tyz[Relidx+i]+
+										      drv.zetaz[Relidx+i]*W.Tzz[Relidx+i]);
+						}
+
+						for(j=1;j<=LenFD-(2-countZ);j++)
+							VecTz[LenFD + (2-countZ) + j] = 2.0*T3Src - VecTz[LenFD + (2-countZ) - j];//TzSrc
+						VecTz[LenFD +(2-countZ)] = T3Src;
+
+						DxTx = rhojac*strF( VecTx, LenFD, xstep, Xvec);
+						DyTy = rhojac*strF( VecTy, LenFD, ystep, Yvec);
+						DzTz = rhojac*strF( VecTz, LenFD, zstep, Zvec);
+
+						hW.Vz[Gindex] = DxTx/Bx + DyTy/By + DzTz;
+
+#ifdef CFSPML
+						//X dir absorption
+						tempIdx = idx+(ipam[2]-LenFD)+ipam[9];
+						if(tempIdx<=apr.nabs[0]+LenFD-1 || tempIdx>=ipam[10]+LenFD-apr.nabs[1])
+						{
+						tempIdx<apr.nabs[0]+LenFD ? Pidx=tempIdx-LenFD : Pidx=tempIdx-(ipam[10]+LenFD-apr.nabs[1])+apr.nabs[0];
+						Pidx = Pidx*(ipam[5]-ipam[4]+1+2*LenFD)*(ipam[8]+2*LenFD) + idy*(ipam[8]+2*LenFD) + idz;
+						
+						hW.Vz[Gindex] -= Ax.Vz[Pidx]/Bx;
+						hAx.Vz[Pidx] = DBx*DxTx - APDx*Ax.Vz[Pidx];
+						}
+						//Y dir absorption
+						tempIdx = idy+(ipam[4]-LenFD);
+						if(tempIdx<=apr.nabs[2]+LenFD-1 || tempIdx>=ipam[7]+LenFD-apr.nabs[3])
+						{
+						tempIdx<apr.nabs[2]+LenFD ? Pidx=tempIdx-LenFD : Pidx=tempIdx-(ipam[7]+LenFD-apr.nabs[3])+apr.nabs[2];
+						Pidx = Pidx*(ipam[3]-ipam[2]+1+2*LenFD)*(ipam[8]+2*LenFD) + idx*(ipam[8]+2*LenFD) + idz;
+
+						hW.Vz[Gindex] -= Ay.Vz[Pidx]/By;
+						hAy.Vz[Pidx] = DBy*DyTy - APDy*Ay.Vz[Pidx];
+						}
+
+#endif
+
+
+					}//loop countZ(LenFD)
+				}//restrict idy
+			}//loop countY
+		}//restrict idx
+	}//loop countX
+
+}
+
+
 __global__ void CalVUCD(int Xvec, int Yvec, int Zvec, Real steph, Real *CoVx, Real* CoVy, mdparF mpa, derivF drv, wfield W, wfield hW,
 			wfield Ax, wfield hAx, wfield Ay, wfield hAy, apara apr)
 {//wrong
@@ -5150,7 +6188,6 @@ __global__ void LoadForce(int Tindex, cindx cdx, Real steph, int nfrc, int nstf,
 #endif
 		}//loop modXYZ
 	}//loop i
-
 }
 
 __global__ void LoadMoment(int Tindex, cindx cdx, Real steph, int nmnt, int nstf, momentF mnt, Real *jac, wfield hW)
@@ -5277,6 +6314,16 @@ __global__ void LoadRmom(cindx cdx, Real steph, int Dfpn, RmomF mnt, Real *jac, 
 #endif
 		}//loop modXYZ
 	}//loop i
+
+/*	
+if(blockIdx.x==0 && blockIdx.y==0 &&threadIdx.x==0)
+	{
+		printf("loc=(%d,%d,%d), idx=%d, idy=%d, idz=%d\n",
+				mnt.locx[0],mnt.locy[0],mnt.locz[0], 
+				mnt.locx[0]-ipam[9]-(ipam[2]-LenFD),mnt.locy[0]-(ipam[4]-LenFD),mnt.locz[0]);
+
+	}
+*/
 
 }
 

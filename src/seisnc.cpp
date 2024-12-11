@@ -1348,7 +1348,8 @@ void seisnc::point_export(int it, Real stept, int npnt, point pnt, wfield wpoint
 	idxn[0] = 1;              idxn[1] = npnt;
 	idxi[0] = 1;              idxi[1] = 1;
 
-	t = it*stept;
+	//t = it*stept;
+	t = (it+1)*stept;
 
 	nc_put_vars(pnt.ncid, pnt.vid[0], idxs, idxn, idxi, wpoint.Vx);
 	nc_put_vars(pnt.ncid, pnt.vid[1], idxs, idxn, idxi, wpoint.Vy);
@@ -1417,7 +1418,8 @@ void seisnc::snap_export(int it, Real stept, int nsnap, snap snp, cindx cdx, wfi
 	      //idxi[0] = 1;                idxi[1] = snp.xi[m];   idxi[2] = snp.yi[m];     idxi[3] = snp.zi[m];//without extraction, directly from orginal array
 		idxi[0] = 1;                idxi[1] = 1;   	   idxi[2] = 1;     	    idxi[3] = 1;//has already extracted
 
-		t = it*stept;
+		//t = it*stept;
+		t = (it+1)*stept;
 
 		if(snp.cmp[m] == 1 || snp.cmp[m] == 3)
 		{
@@ -1464,7 +1466,8 @@ void seisnc::snap_export(int m, int it, Real stept, int nsnap, snap snp, Real **
       //idxi[0] = 1;                idxi[1] = snp.xi[m];   idxi[2] = snp.yi[m];     idxi[3] = snp.zi[m];//without extraction, directly from orginal array
 	idxi[0] = 1;                idxi[1] = 1;   	   idxi[2] = 1;     	    idxi[3] = 1;//has already extracted
 
-	t = it*snp.tinv[m]*stept;
+	//t = it*snp.tinv[m]*stept;
+	t = (it*snp.tinv[m]+1)*stept;
 
 	if(snp.cmp[m] == 1 || snp.cmp[m] == 3)
 	{
@@ -1614,7 +1617,8 @@ void seisnc::wavebuffer_export(int it, Real stept, wavebuffer wbuffer, cindx cdx
 	nc_put_vars(wbuffer.ncid, wbuffer.vid[7], idxs, idxn, idxi, wsnap.Txz);
 	nc_put_vars(wbuffer.ncid, wbuffer.vid[8], idxs, idxn, idxi, wsnap.Tyz);
 	
-	time = it*stept;
+	//time = it*stept;
+	time = (it+1)*stept;
 	nc_put_var(wbuffer.ncid, wbuffer.vid[9], &time);
 	
 	fprintf(stdout,"---accomplished update Buffer-wave-field at time %f (step %d)\n",time,it);

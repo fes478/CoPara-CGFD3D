@@ -20,25 +20,31 @@ MPI_DEBUG :=
 PointOnly := 
 ZWmedia := ON   
 DevicePick :=
+SimpleCar := ON
 
 
 DFLAG_LIST = DisBug TypeDouble SrcSmooth \
              CondFreeVLOW CondFreeTIMG \
 	     MPI_DEBUG CondFreeVUCD CondFree \
 	     withABS CFSPML PointOnly ZWmedia \
-	     HYindex DevicePick
+	     HYindex DevicePick SimpleCar
 
 NCLIBS := -L/public/software/netcdf-gnu/lib -lnetcdf
 NCINC := -I/public/software/netcdf-gnu/include
-CUDALIBS := -L/usr/local/cuda/lib64 -lcudart -lcudadevrt
-CUDAINC := -I/usr/local/cuda/include
-CUDAHELPERINC := -I/usr/local/cuda/samples/common/inc
+CUDALIBS := -L/data/software/cuda-10.0/lib64 -lcudart -lcudadevrt
+CUDAINC := -I/data/software/cuda-10.0/include
+CUDAHELPERINC := -I/data/software/cuda-10.0/samples/common/inc
+#CUDALIBS := -L/usr/local/cuda/lib64 -lcudart -lcudadevrt
+#CUDAINC := -I/usr/local/cuda/include
+#CUDAHELPERINC := -I/usr/local/cuda/samples/common/inc
 MPILIBS := -L /public/software/mpich-gnu/lib -lmpi
 MPIINC := -I /public/software/mpich-gnu/include
 
 LIBFLAGS := $(NCLIBS) $(CUDALIBS) $(MPILIBS)
 INCFLAGS := -I$(SRCDIR) $(NCINC) $(MPIINC)
 
+#CUDAARC := --gpu-architecture=compute_70 --gpu-code=sm_70
+#CUDAARC := --gpu-architecture=compute_60 --gpu-code=sm_60
 CUDAARC := -arch=sm_60
 # cuda link using -rdc=true -dlink, cuda compile -dc
 CXXFLAGS := $(INCFLAGS) -std=c++11
